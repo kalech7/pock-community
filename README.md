@@ -1,3 +1,17 @@
+# Pock Community Fork
+
+This repository is an unofficial community-maintained fork of [Pock](https://github.com/pock/pock). It is not the official Pock project and is not presented as endorsed by the original authors.
+
+The goal of this fork is to keep Pock usable on newer macOS versions for Mac users with a Touch Bar. The original project, authors, contributors, copyright notices, and MIT license remain credited and preserved.
+
+This project remains licensed under the MIT license. See [LICENSE.md](LICENSE.md).
+
+Contributions, bug reports, compatibility reports, and testers are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), [MAINTAINERS.md](MAINTAINERS.md), and [BUILD_STATUS.md](BUILD_STATUS.md) before making larger changes.
+
+This fork should prefer small, safe, reviewable maintenance changes. Do not add new paid services, telemetry, analytics, or tracking. The original README content follows below for attribution and historical context.
+
+---
+
 <p align="center"><img src="https://pock.app/_nuxt/img/pock-icon-big-sur.53a4c62.png" width="96"/></p>
 <p align="center"><b>Widgets manager for MacBook's Touch Bar</b></p>
 <p align="center">Pock is a free, open-source tool that gives you quick access to your favorite controls and services while maximizing your on-screen real estate</p>
@@ -184,7 +198,7 @@ Do you want to build a custom widget for **Pock**? Consult [**PockKit**](https:/
 
 ## Contributions
 
-Please look at the [Contributing](https://github.com/pock/pock/blob/master/CONTRIBUTING.md) file to know the guidelines needed to submit an issue or a pull request.
+Please look at [CONTRIBUTING.md](CONTRIBUTING.md) for the guidelines needed to submit an issue or a pull request to this unofficial community-maintained fork.
 
 
 
@@ -218,4 +232,4 @@ Please look at the [Contributing](https://github.com/pock/pock/blob/master/CONTR
 
 ## License
 
-Under MIT license. See [LICENSE](LICENSE) file for further information.
+Under MIT license. See [LICENSE.md](LICENSE.md) for further information.
