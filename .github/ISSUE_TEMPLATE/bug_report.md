@@ -1,42 +1,49 @@
 ---
 name: Bug report
-about: Something that Pock should do, but it tragically fails in doing it
-title: ''
-labels: 'bug'
-assignees: ''
-
+about: Report incorrect behavior in this unofficial community-maintained fork
+title: "[Bug]: "
+labels: bug
+assignees: ""
 ---
 
-**Describe the bug**
-A clear description of what the bug is.
+## Unofficial Fork Notice
 
-**How to reproduce**
-Steps to reproduce the behavior:
-```
-1. Go to '...'
-2. Click on '....'
-3. Scroll to '....'
-4. See error
-```
+This repository is an unofficial community-maintained fork of Pock, not the official Pock project.
 
-**Expected behavior**
-A clear description of what you expected to happen.
+## Describe the Bug
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-`To take a Touch Bar screenshot use the shortcut "shift + cmd + 6"`
+A clear description of what happened.
 
-**Crashlog**
-If applicable, add crashlog to help me investigate your problem.
-``` 
-1. Open the Console application located at "Application -> Utilities -> Console.app."
-2. Click on "User Reports" in the left menu, then locate the latest Pock crash report. (You can filter reports by typging "pock" into the searchbar on the top)
-3. "ctrl + click" on the latest Pock crash report and click on "Reveal in Finder" option, then attach the .crash file in this issue.
-```
+## Steps to Reproduce
 
-**Versions:**
- - macOS version: [e.g. 10.14.5 (*required)]
- - Pock version:  [e.g. 0.5.2   (*required)]
+1. Describe step one.
+2. Describe step two.
+3. Describe step three.
 
-**Additional context**
-Add any other context about the problem here.
+## Expected Behavior
+
+What you expected to happen.
+
+## Actual Behavior
+
+What happened instead.
+
+## Environment
+
+- macOS version:
+- Mac model:
+- Touch Bar available: yes/no
+- Pock version, commit, or build source:
+- Installed from release or built locally:
+
+## Screenshots or Recordings
+
+If applicable, attach screenshots. To take a Touch Bar screenshot, use `Shift + Command + 6`.
+
+## Crash Report
+
+If applicable, attach the relevant `.crash` report from Console.app > User Reports. Remove private information before attaching logs.
+
+## Additional Context
+
+Add any other relevant details.

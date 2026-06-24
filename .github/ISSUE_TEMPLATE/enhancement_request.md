@@ -1,17 +1,37 @@
 ---
 name: Enhancement request
-about: Something that Pock can do, but it could do it better
-title: ''
-labels: 'enhancement'
-assignees: ''
-
+about: Suggest an improvement to existing behavior in this unofficial community-maintained fork
+title: "[Enhancement]: "
+labels: enhancement
+assignees: ""
 ---
 
-**Describe the feature you'd like to improve in Pock**
-A clear description of what you want to happen.
+## Unofficial Fork Notice
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+This repository is an unofficial community-maintained fork of Pock, not the official Pock project.
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+## Existing Behavior
+
+Describe the behavior you want to improve.
+
+## Proposed Improvement
+
+Describe the improvement you would like to see.
+
+## Motivation
+
+Why would this help Touch Bar Mac users?
+
+## Alternatives Considered
+
+Describe alternatives or workarounds you considered.
+
+## Compatibility Impact
+
+- macOS versions affected:
+- Touch Bar hardware required: yes/no/unknown
+- Any behavior that could break existing users:
+
+## Additional Context
+
+Add screenshots, examples, or related issues if useful.
