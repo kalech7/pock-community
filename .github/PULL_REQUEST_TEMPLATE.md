@@ -4,7 +4,7 @@ Describe the change in a few sentences.
 
 ## Motivation
 
-Why is this change needed for the unofficial community-maintained fork?
+Why is this change needed for Pock Community?
 
 ## Changes Made
 
@@ -24,15 +24,17 @@ Attach screenshots if UI changed. For Touch Bar screenshots, use `Shift + Comman
 
 - [ ] Low: documentation, comments, or narrowly scoped safe fix
 - [ ] Medium: behavior change with limited compatibility risk
-- [ ] High: compatibility, signing, dependency, app identity, or release-impacting change
+- [ ] High: compatibility, signing, dependency, app identity, security, or release-impacting change
 
 ## Checklist
 
 - [ ] This PR does not claim this fork is the official Pock project.
+- [ ] I used the name "Pock Community" consistently in user-facing documentation.
 - [ ] Original attribution and the MIT license are preserved.
 - [ ] The change is small, focused, and reviewable.
 - [ ] I avoided unrelated formatting or generated-file churn.
 - [ ] I did not add new paid services, telemetry, analytics, or tracking.
 - [ ] I did not change bundle identifiers, signing settings, entitlements, app identity, or release assets unless explicitly discussed.
 - [ ] I documented compatibility impacts or confirmed there are none.
+- [ ] I updated release/security/build documentation when relevant.
 - [ ] I ran relevant build/test commands or documented why they could not be run.

@@ -1,14 +1,14 @@
 ---
 name: Enhancement request
-about: Suggest an improvement to existing behavior in this unofficial community-maintained fork
+about: Suggest an improvement to existing Pock Community behavior
 title: "[Enhancement]: "
 labels: enhancement
 assignees: ""
 ---
 
-## Unofficial Fork Notice
+## Disclaimer
 
-This repository is an unofficial community-maintained fork of Pock, not the official Pock project.
+Pock Community is an unofficial community-maintained fork of Pock, not the official Pock project.
 
 ## Existing Behavior
 
@@ -22,14 +22,11 @@ Describe the improvement you would like to see.
 
 Why would this help Touch Bar Mac users?
 
-## Alternatives Considered
-
-Describe alternatives or workarounds you considered.
-
 ## Compatibility Impact
 
 - macOS versions affected:
-- Touch Bar hardware required: yes/no/unknown
+- MacBook models affected:
+- Physical Touch Bar required: yes / no / unknown
 - Any behavior that could break existing users:
 
 ## Additional Context

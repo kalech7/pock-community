@@ -1,82 +1,68 @@
 # Build Status
 
-Last investigated: 2026-06-08
+Last verified: 2026-06-29
 
 ## Summary
 
-The project build could not be verified in this local environment because `xcodebuild` is using Command Line Tools instead of a full Xcode installation. CocoaPods dependency installation succeeded.
+Pock Community builds successfully in the local development environment with full Xcode selected through `DEVELOPER_DIR`.
 
 ## Detected Project Setup
 
-- Language: Swift, with a small amount of Objective-C bridging/private framework code.
-- Platform: macOS app targeting Touch Bar Macs.
-- Build system: Xcode project/workspace.
+- Language: Swift, with Objective-C bridging/private framework code.
+- Platform: macOS app for Touch Bar Macs.
+- Build system: Xcode workspace.
 - Dependency manager: CocoaPods.
-- Swift Package Manager: no `Package.swift` detected.
-- Carthage: no `Cartfile` detected.
 - Main project files: `Pock.xcodeproj`, `Pock.xcworkspace`, `Podfile`.
-- Shared schemes: `Pock`, `QLPockWidget`, `Relaunch`.
-- Deployment target detected in project and Podfile: macOS 10.15.
+- Deployment target: macOS 10.15.
+- App version: `0.10.0` build `5`.
+- App bundle identifier: `io.github.kalech7.pock-community`.
 
 ## Dependencies
 
 Declared in `Podfile`:
 
 - `PockKit` from `git@github.com:pock/pockkit.git`
-- `AppCenter/Analytics`
-- `AppCenter/Crashes`
 - `Magnet`
 - `Zip`
 
-CocoaPods also installed transitive dependencies including `Sauce` and `TinyConstraints` during this investigation.
+CocoaPods also installs transitive dependencies including `Sauce` and `TinyConstraints`.
 
-## Commands Attempted
+Telemetry, analytics, and crash-reporting dependencies are not used by this fork.
+
+## Verified Commands
 
 ```sh
-ls -la
-find . -maxdepth 3 -type f
-xcodebuild -list
 pod install
-xcodebuild -list -workspace Pock.xcworkspace
-xcodebuild -workspace Pock.xcworkspace -scheme Pock -configuration Debug build CODE_SIGNING_ALLOWED=NO
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -list -workspace Pock.xcworkspace
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace Pock.xcworkspace -scheme "Pock (Pock project)" -configuration Release build CODE_SIGNING_ALLOWED=NO
+./scripts/install_app.sh
 ```
-
-`swift build` was not run because there is no `Package.swift`.
 
 ## Results
 
-`pod install` succeeded with CocoaPods 1.16.2 and installed:
+- `pod install`: succeeded.
+- `xcodebuild -list -workspace Pock.xcworkspace`: succeeded.
+- Release build with `CODE_SIGNING_ALLOWED=NO`: succeeded.
+- `./scripts/install_app.sh`: built Release, copied `Pock.app` to `/Applications`, and opened it.
 
-- AppCenter 5.12.0
-- Magnet 3.4.0
-- PockKit 0.3.1
-- Sauce 2.4.1
-- TinyConstraints 4.0.2
-- Zip 2.1.2
+## Known Warnings
 
-CocoaPods reported warnings that the `Pock` Debug and Release targets override `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES` from the Pods xcconfig files.
+CocoaPods reports that the `Pock` Debug and Release targets override `ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES` from the Pods xcconfig files. This warning is existing project configuration and did not block the verified Release build.
 
-Both `xcodebuild -list` and the explicit build command failed with:
+Xcode reports that some run script phases do not specify outputs and therefore run during every build. This did not block the verified Release build.
 
-```text
-xcode-select: error: tool 'xcodebuild' requires Xcode, but active developer directory '/Library/Developer/CommandLineTools' is a command line tools instance
+## Notes For Contributors
+
+Use full Xcode, not Command Line Tools only. If `xcodebuild` reports that the active developer directory is Command Line Tools, either set:
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 ```
 
-## Current Build Assumptions
+or run:
 
-A fresh build likely requires:
+```sh
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+```
 
-- Full Xcode installed and selected with `xcode-select`.
-- CocoaPods installed.
-- Network/Git access to `git@github.com:pock/pockkit.git`.
-- Running `pod install` before opening/building the workspace.
-- Building the `Pock` scheme from `Pock.xcworkspace`.
-- Local signing adjustments in Xcode if running the app on a developer machine, without committing signing or bundle identifier changes.
-
-## Likely Next Steps
-
-1. Select full Xcode: `sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`.
-2. Run `pod install` from a clean checkout.
-3. Run `xcodebuild -list -workspace Pock.xcworkspace`.
-4. Run `xcodebuild -workspace Pock.xcworkspace -scheme Pock -configuration Debug build CODE_SIGNING_ALLOWED=NO`.
-5. If compiler or signing errors appear, document the exact errors before attempting targeted fixes.
+Do not commit local signing, provisioning, developer team, or certificate changes unless a maintainer explicitly requests them.

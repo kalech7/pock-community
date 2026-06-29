@@ -1,14 +1,14 @@
 ---
 name: macOS compatibility report
-about: Report whether Pock works or fails on a specific macOS and Mac hardware combination
+about: Report whether Pock Community works on a specific macOS and MacBook model
 title: "[Compatibility]: macOS "
 labels: compatibility
 assignees: ""
 ---
 
-## Unofficial Fork Notice
+## Disclaimer
 
-This repository is an unofficial community-maintained fork of Pock, not the official Pock project.
+Pock Community is an unofficial community-maintained fork of Pock, not the official Pock project.
 
 ## Compatibility Result
 
@@ -20,25 +20,31 @@ This repository is an unofficial community-maintained fork of Pock, not the offi
 
 ## Environment
 
-- macOS version and build number:
-- Mac model and year:
-- Processor: Intel/Apple Silicon
-- Physical Touch Bar available: yes/no
-- Pock version, commit, or release:
-- Installed from release or built locally:
+| Field | Value |
+| --- | --- |
+| macOS version and build |  |
+| MacBook model and year |  |
+| Processor | Intel / Apple Silicon |
+| Physical Touch Bar | yes / no |
+| Pock Community version, commit, or release |  |
+| Installed from release or built locally |  |
+
+## Compatibility Table Row
+
+You can copy this row into a future compatibility table update:
+
+```md
+| macOS version | MacBook model | Intel / Apple Silicon | yes / no | Works / Partial / Broken |
+```
 
 ## What Was Tested
 
-Describe the widgets, preferences, launch behavior, permissions, and Touch Bar behavior you tested.
+Describe the widgets, preferences, launch behavior, permissions, updates, and Touch Bar customization behavior you tested.
 
 ## Problems Found
 
-Describe any broken behavior, crashes, missing permissions, layout issues, or OS-specific warnings.
+Describe crashes, missing permissions, layout issues, missing widgets, app launch problems, or OS-specific warnings.
 
-## Logs or Screenshots
+## Logs Or Screenshots
 
-Attach relevant logs or screenshots. To take a Touch Bar screenshot, use `Shift + Command + 6`.
-
-## Notes
-
-Add any other compatibility observations.
+Attach relevant logs or screenshots. Touch Bar screenshots can be captured with `Shift + Command + 6`.

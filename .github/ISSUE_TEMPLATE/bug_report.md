@@ -1,49 +1,49 @@
 ---
 name: Bug report
-about: Report incorrect behavior in this unofficial community-maintained fork
+about: Report incorrect behavior in Pock Community
 title: "[Bug]: "
 labels: bug
 assignees: ""
 ---
 
-## Unofficial Fork Notice
+## Disclaimer
 
-This repository is an unofficial community-maintained fork of Pock, not the official Pock project.
+Pock Community is an unofficial community-maintained fork of Pock, not the official Pock project.
 
-## Describe the Bug
+## Summary
 
-A clear description of what happened.
+Describe the bug clearly.
 
-## Steps to Reproduce
+## Steps To Reproduce
 
-1. Describe step one.
-2. Describe step two.
-3. Describe step three.
+1.
+2.
+3.
 
 ## Expected Behavior
 
-What you expected to happen.
+Describe what you expected to happen.
 
 ## Actual Behavior
 
-What happened instead.
+Describe what happened instead.
 
 ## Environment
 
-- macOS version:
-- Mac model:
-- Touch Bar available: yes/no
-- Pock version, commit, or build source:
-- Installed from release or built locally:
+| Field | Value |
+| --- | --- |
+| macOS version and build |  |
+| MacBook model and year |  |
+| Processor | Intel / Apple Silicon |
+| Physical Touch Bar | yes / no |
+| Pock Community version, commit, or release |  |
+| Installed from release or built locally |  |
+| Installed widgets |  |
 
-## Screenshots or Recordings
+## Logs Or Crash Reports
 
-If applicable, attach screenshots. To take a Touch Bar screenshot, use `Shift + Command + 6`.
-
-## Crash Report
-
-If applicable, attach the relevant `.crash` report from Console.app > User Reports. Remove private information before attaching logs.
+Attach relevant logs or crash reports with private information removed. Touch Bar screenshots can be captured with `Shift + Command + 6`.
 
 ## Additional Context
 
-Add any other relevant details.
+Add anything else that may help reproduce or diagnose the issue.

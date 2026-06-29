@@ -8,7 +8,7 @@
 */
 
 // MARK: Base
-"base.website_url" = "https://pock.app";
+"base.website_url" = "https://github.com/kalech7/pock-community";
 "base.widget" = "widget";
 
 // MARK: General

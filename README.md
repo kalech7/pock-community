@@ -1,263 +1,154 @@
-# Pock Community Fork
+# Pock Community
 
-This repository is an unofficial community-maintained fork of [Pock](https://github.com/pock/pock). It is not the official Pock project and is not presented as endorsed by the original authors.
+Pock Community is an unofficial community-maintained fork of [Pock](https://github.com/pock/pock), a macOS app for MacBook models with a physical Touch Bar.
 
-The goal of this fork is to keep Pock usable on newer macOS versions for Mac users with a Touch Bar. The original project, authors, contributors, copyright notices, and MIT license remain credited and preserved.
+This fork is not the official Pock project and is not endorsed by the original authors. The purpose of this repository is to keep Pock usable for Touch Bar Mac users while preserving the original MIT license, copyright notices, and attribution.
 
-This project remains licensed under the MIT license. See [LICENSE.md](LICENSE.md).
+## Status
 
-Contributions, bug reports, compatibility reports, and testers are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), [MAINTAINERS.md](MAINTAINERS.md), and [BUILD_STATUS.md](BUILD_STATUS.md) before making larger changes.
+- App name used by this repository: **Pock Community**
+- Distributed app bundle: `Pock.app`
+- Current app version in the Xcode project: `0.10.0` build `5`
+- Telemetry: none. Analytics and crash-reporting dependencies have been removed.
+- Primary platform: macOS on MacBook models with a physical Touch Bar
+- License: MIT, with original attribution preserved in [LICENSE.md](LICENSE.md)
 
-## Community Install
+## Visible Disclaimer
 
-For local community builds, run:
+Pock Community is an unofficial fork. Do not present this repository, its releases, or its builds as the official Pock project. If you redistribute builds, keep the original license and attribution intact and make the community-maintained status clear.
+
+## Installation
+
+Download the latest zip from this repository's GitHub Releases page, unzip it, and move `Pock.app` to `/Applications`.
+
+On first launch, Pock Community shows an onboarding flow that:
+
+- Prompts for the Accessibility permission needed for Touch Bar control behavior.
+- Enables launch at login by default.
+- Lets users open Preferences and adjust startup behavior.
+
+If macOS blocks the app because the release is unsigned or not notarized, open **System Settings > Privacy & Security** and allow the app manually. Future notarized releases should reduce this warning.
+
+## Local Install From Source
+
+For a local community build:
 
 ```sh
 ./scripts/install_app.sh
 ```
 
-The script installs CocoaPods dependencies, builds the Release app, copies
-`Pock.app` to `/Applications`, and opens it. On first launch, the onboarding
-enables launch at login and prompts for the Accessibility permission Pock needs
-to interact smoothly with macOS controls.
+The script runs `pod install`, builds the Release configuration, copies `Pock.app` to `/Applications`, and opens it.
 
-## Community App Identity
+## Build Instructions
 
-This fork uses the `io.github.kalech7.pock-community` bundle identifier family
-so community builds can be distributed separately from the original Pock app:
+Requirements:
 
-- App: `io.github.kalech7.pock-community`
-- Relaunch helper: `io.github.kalech7.pock-community.relaunch`
-- Quick Look widget extension: `io.github.kalech7.pock-community.QLPockWidget`
-- Widget document type: `io.github.kalech7.pock-community.widget`
-- Widget archive document type: `io.github.kalech7.pock-community.widget.archive`
+- macOS with full Xcode installed, not only Command Line Tools.
+- CocoaPods installed.
+- Network access for CocoaPods dependencies.
 
-Changing this identity makes macOS treat Pock Community as a separate app. Users
-may need to grant permissions again and existing preferences from the original
-Pock bundle identifier are not reused automatically.
+Recommended commands:
 
-This fork should prefer small, safe, reviewable maintenance changes. Do not add new paid services, telemetry, analytics, or tracking. This community fork does not include AppCenter telemetry. The original README content follows below for attribution and historical context.
+```sh
+pod install
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -list -workspace Pock.xcworkspace
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace Pock.xcworkspace -scheme "Pock (Pock project)" -configuration Release build CODE_SIGNING_ALLOWED=NO
+```
 
----
+Open `Pock.xcworkspace`, not `Pock.xcodeproj`, when working in Xcode.
 
-<p align="center"><img src="https://pock.app/_nuxt/img/pock-icon-big-sur.53a4c62.png" width="96"/></p>
-<p align="center"><b>Widgets manager for MacBook's Touch Bar</b></p>
-<p align="center">Pock is a free, open-source tool that gives you quick access to your favorite controls and services while maximizing your on-screen real estate</p>
-<p align="center">
-  <img width="800" src="https://pock.app/_nuxt/img/pock_widgets.5cf5510.png"/>
-</p>
-<p align="center">
-  <a href="https://pock.app/download?file=pock_0_9_0__22.zip">Download</a>
-  |
-  <a href="https://github.com/pock/pock">GitHub</a>
-  |
-  <a href="https://www.producthunt.com/posts/pock">ProductHunt</a>
-  |
-  <a href="https://pock.app/docs/catalina">Permissions</a>
-  |
-  <a href="https://github.com/pock/pock/releases/tag/0.9.0-22">Changelog</a>
-</p>
+## Verified Build
 
+The Release build was verified locally on June 29, 2026 with:
 
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace Pock.xcworkspace -scheme "Pock (Pock project)" -configuration Release build CODE_SIGNING_ALLOWED=NO
+```
 
+Result: `BUILD SUCCEEDED`.
 
-## Thank you!
+The local installer was also verified:
 
-If you want to support this project, you can [click here](https://paypal.me/pigigaldi)!
-Pock will always be available as free software!
+```sh
+./scripts/install_app.sh
+```
 
+Result: built Release, installed `/Applications/Pock.app`, and opened the app.
 
+## Compatibility
 
-## How to install
+Compatibility depends on macOS version, hardware, and whether the Mac has a physical Touch Bar.
 
- 1. Go to the [official website](https://pock.app) and click download.
- 2. Unzip the archive by double-clicking on the file or running `unzip`
- 3. Move the extracted file to `/Applications`
+| macOS | MacBook model | Processor | Touch Bar | Status |
+| --- | --- | --- | --- | --- |
+| macOS 26.0 / 26.2 SDK local build environment | Local development machine | Apple Silicon / universal build output | Not physically verified by automation | Build succeeds |
+| macOS 14 Sonoma | MacBook Pro with Touch Bar | Intel or Apple Silicon | Yes | Needs community reports |
+| macOS 13 Ventura | MacBook Pro with Touch Bar | Intel or Apple Silicon | Yes | Needs community reports |
+| macOS 12 Monterey | MacBook Pro with Touch Bar | Intel | Yes | Needs community reports |
+| macOS 11 Big Sur | MacBook Pro with Touch Bar | Intel | Yes | Needs community reports |
 
-
-
- ## Usage
-
-  1. Open Pock.
-
-  2. Check the menu bar for the newly added Pock icon. You can access Pock and widgets preferences from this menu item.
-
-       <small>_(If you don't see Pock in your Touch Bar, go to the `Keyboard` pane in System Preferences and select "Touch Bar shows App Controls", then relaunch Pock)_</small>
-
-
+Please use the compatibility issue template to report exact macOS version, Mac model, processor type, Touch Bar availability, installed release, and results.
 
 ## Permissions
 
-To have a flawless experience, please click [here](https://pock.app/docs/catalina) and read all the suggestions carefully.
+Pock Community may need Accessibility permission to interact smoothly with macOS controls and Touch Bar behavior. Grant it in:
 
-Pock sends some _anonymous events_ over _AppCenter_ to speed up issues/bugs-catching. If you don't agree with this, then please, don't download it.
-_These events will never be used for marketing purposes since it's not a commercial package_.
+```text
+System Settings > Privacy & Security > Accessibility
+```
 
-## How to uninstall
+The app does not include telemetry, analytics, or tracking.
 
-  1. Quit Pock.
+## Updates And Releases
 
-  2. Move Pock app file from`/Applications` to Trash.
-     
-     <small>_(If you don't see the default system controls in your Touch Bar, go to the `Keyboard` preference pane in System Preferences and select "Touch Bar shows App Controls" or configure the system settings based on your needs)_</small>
+Source changes pushed to `main` do not automatically update user installations. Users receive updates only when maintainers publish a release artifact and update the version catalog used by the app.
 
+Release process documentation lives in [RELEASES.md](RELEASES.md).
 
+## Reporting Issues
 
-## Widgets
+Use the GitHub issue templates. Useful reports include:
 
-<small>Includes five default widgets</small>
+- macOS version and build number.
+- Mac model and year.
+- Intel or Apple Silicon.
+- Whether a physical Touch Bar is available.
+- Pock Community release, commit, or build source.
+- Installed widgets.
+- Clear reproduction steps.
+- Logs or crash reports with private information removed.
 
-##### Dock widget
+## Security
 
-Your macOS Dock inside your MacBook's TouchBar, the core widget.
-It comes with fully-functional badge support, so you will not miss any notification.
-More features can be configured in widget settings along with other preferences.
-It now includes multi-window support!
-*Enjoy your screen in full-size every time!*
+Do not report sensitive security issues in public issues. See [SECURITY.md](SECURITY.md).
 
-<div align="left">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_dock_widget.6c84647.png"/>
-</div>
-<div align="left" style="margin-top:6px">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_app_expose.122ed53.png"/>
-</div>
+## Contributing
 
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes small, reviewable, and scoped. Do not add paid services, telemetry, analytics, or tracking.
 
+## Maintainers
 
-##### Now Playing widget
-
-Media information at a glance with gestures for media controls included.
-
-| Gesture     | Action            |
-| ----------- | :---------------- |
-| tap         | toggle play/pause |
-| swipe left  | previous song     |
-| swipe right | next song         |
-
-<div align="left">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_now_playing_widget.fb1e8cf.png"/>
-</div>
-
-
-
-##### ESC widget
-
-A handy ESC button is there, just in case, so you don't have to hide Pock to access the system one.
-
-<div align="left">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_esc_widget.03f476d.png"/>
-</div>
-
-
-
-##### Status widget
-
-Always keep an eye on system information, like what time it is, or maybe WiFi status or Battery status. Configure Status items from settings.
-
-<div align="left">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_status_widget.33efaa7.png"/>
-</div>
-
-
-
-##### Control Center widget
-
-Change screen brightness or system volume with easy controls.
-Long press or slide on control center item to invoke sliders.
-
-<div align="left">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_control_center_widget.3ab93ea.png"/>
-</div>
-
-
-
-##### Weather widget
-
-Stay updated with the latest weather forecast for your location, displayed directly into your Touch Bar.
-
-<div align="left">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_weather_widget.584df8f.png"/>
-</div>
-
-
-
-##### More...
-
-More widgets are coming!
-Keep search for #pock on social media to be updated on future widgets releases!
-
-<div align="left">
-  <img width="500" src="https://pock.app/_nuxt/img/pock_more_widget.b8c7aa2.png"/>
-</div>
-
-
-
-## Preferences
-
-You can adjust Pock and widgets settings to reflects your specific needs. You can access these panes from the **Preferences…** and **Manage Widgets…** menu items.
-
-<div display="float">
-  <img width="262" src="https://pock.app/_nuxt/img/preference_general.f5f55b1.png"/>
-  <img width="262" src="https://pock.app/_nuxt/img/preference_nowplaying_widget.4cfa367.png"/>
-  <img width="262" src="https://pock.app/_nuxt/img/preference_dock_widget.b2bb413.png"/>
-</div>
-
-
-
-## Customize
-
-You can customize the position of the widgets in the Touch Bar from the **Customize Pock…** menu item.
-
-<div align="left">
-  <img src="https://pock.app/_nuxt/img/pock_customize.25172d4.png"/>
-</div>
-
-
-
-## Developers
-
-Do you want to build a custom widget for **Pock**? Consult [**PockKit**](https://pock.app/docs) documentation to know-how!
-
-
-<div align="center">
-  <img width="260" src="https://pock.app/_nuxt/img/xcode12_plus_pockkit.68788ac.png"/>
-</div>
-
-
-## Contributions
-
-Please look at [CONTRIBUTING.md](CONTRIBUTING.md) for the guidelines needed to submit an issue or a pull request to this unofficial community-maintained fork.
-
-
+Maintainer expectations and release responsibilities are documented in [MAINTAINERS.md](MAINTAINERS.md).
 
 ## Dependencies
 
-* [TinyConstraints](https://github.com/roberthein/TinyConstraints)
-* [Magnet](https://github.com/Clipy)
-* [Zip](https://github.com/marmelroy/Zip)
+- [PockKit](https://github.com/pock/pockkit)
+- [Magnet](https://github.com/Clipy/Magnet)
+- [Zip](https://github.com/marmelroy/Zip)
+- [Sauce](https://github.com/Clipy/Sauce)
+- [TinyConstraints](https://github.com/roberthein/TinyConstraints)
 
+## Original Attribution
 
+This fork is based on the original Pock project by Pierluigi Galdi and contributors. Original copyright notices and the MIT license are preserved.
 
-## Special mentions
+Special thanks from the original project are preserved for:
 
-* [BrokenSt0rm](https://twitter.com/BrokenSt0rm) - Thanks for [openweather-proxy-rs](https://github.com/BrokenSt0rm/openweather-proxy-rs).
-* [sveinbjornt](https://github.com/sveinbjornt/) - Thanks for [STPrivilegedTask](https://github.com/sveinbjornt/STPrivilegedTask).
-* [boyvanamstel](https://gist.github.com/boyvanamstel/1409312) - Great sample of an _Objective-C_ class to loop through startup items.
-* [Minebomber](https://stackoverflow.com/a/36115210) - Beautiful idea on how to retrieve additional information from Dock icons.
-
-
-
-## Translated READMEs
-
-🇺🇸 [English](README.md)
-🇨🇳 [中文](.github/readmes/README.cn.md)
-🇯🇵 [日本語](.github/readmes/README.ja.md)
-🇹🇷 [Türkçe](.github/readmes/README.tr.md)
-
-<small>* Some translations may be different or incomplete</small>.
-
-
+- BrokenSt0rm
+- sveinbjornt
+- boyvanamstel
+- Minebomber
 
 ## License
 
-Under MIT license. See [LICENSE.md](LICENSE.md) for further information.
+MIT. See [LICENSE.md](LICENSE.md).
