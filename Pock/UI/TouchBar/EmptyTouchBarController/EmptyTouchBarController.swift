@@ -17,11 +17,11 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 	internal var state: State = .empty
 	
     // MARK: UI Elements
-	@IBOutlet private weak var titleLabel: NSTextField!
-	@IBOutlet private weak var subtitleLabel: NSTextField!
-	@IBOutlet private weak var informativeLabel: NSTextField!
-	@IBOutlet private weak var actionIconView: NSImageView!
-	@IBOutlet private weak var actionButton: NSButton!
+	@IBOutlet private weak var titleLabel: NSTextField?
+	@IBOutlet private weak var subtitleLabel: NSTextField?
+	@IBOutlet private weak var informativeLabel: NSTextField?
+	@IBOutlet private weak var actionIconView: NSImageView?
+	@IBOutlet private weak var actionButton: NSButton?
 	
 	// MARK: Mouse Support
 	private var buttonWithMouseOver: NSButton?
@@ -63,6 +63,13 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 	}
 	
 	private func updateUIState() {
+		guard let titleLabel = titleLabel,
+			  let subtitleLabel = subtitleLabel,
+			  let informativeLabel = informativeLabel,
+			  let actionButton = actionButton else {
+			Roger.error("[EmptyTouchBarController] Can't update UI because one or more outlets are not connected.")
+			return
+		}
 		switch state {
 		case .empty:
 			informativeLabel.stringValue = "widgets.empty.add-widgets-to-pock".localized
@@ -89,13 +96,16 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 		switch button.tag {
 		case 0:
 			dismiss()
-			async(after: 0.1) {
+			async(after: 0.1) { [weak self] in
+				self?.isHandlingAction = false
 				AppController.shared.openPockCustomizationPalette()
 			}
 		case 1:
 			dismiss()
+			isHandlingAction = false
 			AppController.shared.reInstallDefaultWidgets()
 		default:
+			isHandlingAction = false
 			return
 		}
 	}
@@ -138,17 +148,20 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 // MARK: Icon bounce animation
 extension EmptyTouchBarController {
 	private func addIconViewAnimation() {
-		actionIconView.superview?.layout()
+		guard let iconContainerView = actionIconView?.superview else {
+			return
+		}
+		iconContainerView.layout()
 		let slideAnimation = CABasicAnimation(keyPath: "position.x")
 		slideAnimation.duration  = 0.475
-		slideAnimation.fromValue = (actionIconView.superview?.frame.origin.x ?? 0) + 3.3525
-		slideAnimation.toValue   = (actionIconView.superview?.frame.origin.x ?? 0) - 1.3525
+		slideAnimation.fromValue = iconContainerView.frame.origin.x + 3.3525
+		slideAnimation.toValue   = iconContainerView.frame.origin.x - 1.3525
 		slideAnimation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
 		slideAnimation.autoreverses = true
 		slideAnimation.repeatCount = .greatestFiniteMagnitude
-		actionIconView.superview?.layer?.add(slideAnimation, forKey: "bounce_animation")
+		iconContainerView.layer?.add(slideAnimation, forKey: "bounce_animation")
 	}
 	private func removeIconViewAnimation() {
-		actionIconView.superview?.layer?.removeAnimation(forKey: "bounce_animation")
+		actionIconView?.superview?.layer?.removeAnimation(forKey: "bounce_animation")
 	}
 }

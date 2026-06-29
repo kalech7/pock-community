@@ -68,7 +68,7 @@ internal final class WidgetsLoader {
 	internal func loadInstalledWidgets(_ completion: @escaping WidgetsLoaderHandler) {
 		WidgetsLoader.installedWidgets.removeAll()
 		let widgetURLs = fileManager.filesInFolder(kWidgetsPath, filter: {
-			$0.contains(".pock") && !$0.contains("disabled") && !$0.contains("/")
+			$0.hasSuffix(".pock") && !$0.contains("disabled") && !$0.contains("/")
 		})
 		var widgets: [PKWidgetInfo] = []
 		for widgetFilePathURL in widgetURLs {
