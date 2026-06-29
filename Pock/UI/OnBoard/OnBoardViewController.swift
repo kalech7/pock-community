@@ -6,6 +6,7 @@
 //
 
 import Cocoa
+import ApplicationServices
 
 class OnBoardViewController: NSViewController {
 
@@ -17,6 +18,18 @@ class OnBoardViewController: NSViewController {
 	@IBOutlet private weak var defaultWidgetsInstallLabel: NSTextField!
 	@IBOutlet private weak var openPreferencesButton: NSButton!
 	@IBOutlet private weak var continueWithDefaultSettingsButton: NSButton!
+
+	private let accessibilityStatusLabel = NSTextField(labelWithString: "")
+	private let accessibilityButton = NSButton(
+		title: "onboard.accessibility.open-settings".localized,
+		target: nil,
+		action: nil
+	)
+	private let launchAtLoginCheckbox = NSButton(
+		checkboxWithTitle: "onboard.launch-at-login".localized,
+		target: nil,
+		action: nil
+	)
 	
 	private var animatableViews: [NSTextField] {
 		let substack: [NSStackView] = defaultWidgetsStackView.findViews()
@@ -41,7 +54,11 @@ class OnBoardViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 		Preferences[.didShowOnBoard] = true
+		Preferences[.didCompleteSetupOnBoard] = true
 		configureUIElements()
+		configureSetupSection()
+		enableLaunchAtLoginByDefault()
+		requestAccessibilityPermission()
 		animate()
     }
 	
@@ -69,6 +86,61 @@ class OnBoardViewController: NSViewController {
 		continueWithDefaultSettingsButton.title = "onboard.continue-with-default-settings".localized
 		continueWithDefaultSettingsButton.isHighlighted = true
 	}
+
+	private func configureSetupSection() {
+		guard let mainStackView = view.subviews.first(where: { $0 is NSStackView }) as? NSStackView else { return }
+
+		let setupTitleLabel = NSTextField(labelWithString: "onboard.setup.title".localized)
+		setupTitleLabel.font = .boldSystemFont(ofSize: NSFont.systemFontSize)
+		setupTitleLabel.alignment = .center
+
+		accessibilityStatusLabel.alignment = .center
+		accessibilityStatusLabel.textColor = .secondaryLabelColor
+		accessibilityStatusLabel.maximumNumberOfLines = 2
+
+		accessibilityButton.target = self
+		accessibilityButton.action = #selector(openAccessibilitySettings)
+		accessibilityButton.bezelStyle = .rounded
+
+		launchAtLoginCheckbox.target = self
+		launchAtLoginCheckbox.action = #selector(toggleLaunchAtLogin(_:))
+		launchAtLoginCheckbox.state = Preferences[.launchAtLogin] == true ? .on : .off
+
+		let setupStackView = NSStackView(views: [
+			setupTitleLabel,
+			accessibilityStatusLabel,
+			accessibilityButton,
+			launchAtLoginCheckbox
+		])
+		setupStackView.orientation = .vertical
+		setupStackView.alignment = .centerX
+		setupStackView.spacing = 8
+		setupStackView.edgeInsets = NSEdgeInsets(top: 0, left: 24, bottom: 0, right: 24)
+
+		mainStackView.insertArrangedSubview(setupStackView, at: min(4, mainStackView.arrangedSubviews.count))
+		updateAccessibilityStatus()
+	}
+
+	private func enableLaunchAtLoginByDefault() {
+		guard Preferences[.launchAtLogin] == false else { return }
+		Preferences[.launchAtLogin] = true
+		launchAtLoginCheckbox.state = .on
+	}
+
+	private func requestAccessibilityPermission() {
+		let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+		let options = [promptKey: true] as CFDictionary
+		_ = AXIsProcessTrustedWithOptions(options)
+		updateAccessibilityStatus()
+	}
+
+	private func updateAccessibilityStatus() {
+		let isTrusted = AXIsProcessTrusted()
+		accessibilityStatusLabel.stringValue = isTrusted
+			? "onboard.accessibility.granted".localized
+			: "onboard.accessibility.required".localized
+		accessibilityButton.isHidden = isTrusted
+	}
 	
 	private func animate() {
 		for view in animatableViews {
@@ -84,6 +156,17 @@ class OnBoardViewController: NSViewController {
 			}
 		}
 	}
+
+	@objc private func openAccessibilitySettings() {
+		requestAccessibilityPermission()
+		if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+			NSWorkspace.shared.open(url)
+		}
+	}
+
+	@objc private func toggleLaunchAtLogin(_ sender: NSButton) {
+		Preferences[.launchAtLogin] = sender.state == .on
+	}
 	
 	@IBAction private func didSelectButton(_ button: NSButton) {
 		defer {
@@ -92,6 +175,8 @@ class OnBoardViewController: NSViewController {
 		switch button {
 		case openPreferencesButton:
 			AppController.shared.openController(PreferencesViewController())
+		case continueWithDefaultSettingsButton:
+			updateAccessibilityStatus()
 		default:
 			return
 		}

@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import AppCenterAnalytics
 import PockKit
 
 /// Customization identifier
@@ -28,6 +27,17 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	internal var allowedCustomizationIdentifiers: [NSTouchBarItem.Identifier] {
 		return Array(widgets.keys) + [.flexibleSpace]
+	}
+
+	internal var preferredItemIdentifiers: [NSTouchBarItem.Identifier] {
+		let savedRawIdentifiers: [String] = Preferences[.pockTouchBarItemIdentifiers]
+		let savedIdentifiers = savedRawIdentifiers.map({ NSTouchBarItem.Identifier($0) })
+		let allowedIdentifiers = Set(allowedCustomizationIdentifiers)
+		let savedVisibleIdentifiers = savedIdentifiers.filter({ allowedIdentifiers.contains($0) })
+		guard savedVisibleIdentifiers.isEmpty == false else {
+			return Array(widgets.keys)
+		}
+		return savedVisibleIdentifiers
 	}
 	
 	// MARK: Mouse Support
@@ -63,9 +73,11 @@ internal class PockTouchBarController: PKTouchBarMouseController {
         guard AppController.shared.isLocked == false, isVisible == false else {
 			return
 		}
+		flushWidgetItems()
 		for widget in WidgetsLoader.loadedWidgets {
 			widgets[NSTouchBarItem.Identifier(widget.bundleIdentifier)] = widget
 		}
+		touchBar = nil
 		let placement: Int64
 		let presentationMode: PresentationMode
 		switch Preferences[.layoutStyle] as LayoutStyle {
@@ -105,11 +117,18 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		widgets.removeAll()
 	}
 
+	internal func savePreferredItemIdentifiers(_ identifiers: [NSTouchBarItem.Identifier]) {
+		let allowedIdentifiers = Set(allowedCustomizationIdentifiers)
+		let visibleIdentifiers = identifiers.filter({ allowedIdentifiers.contains($0) })
+		Preferences[.pockTouchBarItemIdentifiers] = visibleIdentifiers.map({ $0.rawValue })
+	}
+
 	/// Setup Touch Bar
 	override func makeTouchBar() -> NSTouchBar? {
 		let touchBar = NSTouchBar()
 		touchBar.delegate = self
 		touchBar.customizationIdentifier = .pockTouchBarController
+		touchBar.defaultItemIdentifiers = preferredItemIdentifiers
 		touchBar.customizationAllowedItemIdentifiers = allowedCustomizationIdentifiers
 		for key in widgets.keys {
 			Roger.info("[\(key.rawValue)] - Allowed for customization")

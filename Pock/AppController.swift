@@ -7,7 +7,6 @@
 
 import Foundation
 import Combine
-import AppCenterAnalytics
 import Magnet
 import PockKit
 
@@ -307,8 +306,11 @@ extension AppController: NSTouchBarDelegate {
 		pockTouchBarController.minimize()
 		prepareCustomizationHost()
 		addCustomizationObservers()
-		async(after: 0.375) {
-			NSApp.toggleTouchBarCustomizationPalette(self)
+		async(after: 0.375) { [weak self] in
+			guard let self = self else {
+				return
+			}
+			NSApp.toggleTouchBarCustomizationPalette(self.customizationHostView ?? self)
 		}
 	}
 	
@@ -323,12 +325,15 @@ extension AppController: NSTouchBarDelegate {
 		let touchBar = NSTouchBar()
 		touchBar.delegate = self
 		touchBar.customizationIdentifier = .pockTouchBarController
+		touchBar.defaultItemIdentifiers = controller.touchBar?.itemIdentifiers ?? controller.preferredItemIdentifiers
 		touchBar.customizationAllowedItemIdentifiers = controller.allowedCustomizationIdentifiers
 		return touchBar
 	}
 	
 	func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
-		guard let item = pockTouchBarController.touchBar?.item(forIdentifier: identifier) else {
+		let item = pockTouchBarController.touchBar?.item(forIdentifier: identifier)
+			?? pockTouchBarController.widgets[identifier].flatMap({ PKWidgetTouchBarItem(widget: $0) })
+		guard let item = item else {
 			Roger.error("Can't find `NSTouchBarItem` for given identifier: `\(identifier)`")
 			return nil
 		}
@@ -355,6 +360,9 @@ extension AppController: NSTouchBarDelegate {
 	}
 	
 	@objc private func didExitCustomization(_ sender: Any?) {
+		if let identifiers = customizationHostView?.touchBar?.itemIdentifiers {
+			pockTouchBarController.savePreferredItemIdentifiers(identifiers)
+		}
 		removeCustomizationObservers()
 		customizationWindowController?.close()
 		customizationWindowController = nil
@@ -376,6 +384,16 @@ private final class TouchBarCustomizationHostView: NSView {
 	}
 }
 
+private final class TouchBarCustomizationWindow: NSWindow {
+	override var canBecomeKey: Bool {
+		return true
+	}
+
+	override var canBecomeMain: Bool {
+		return true
+	}
+}
+
 extension AppController {
 	private func prepareCustomizationHost() {
 		customizationWindowController?.close()
@@ -384,7 +402,7 @@ extension AppController {
 		hostView.appController = self
 		hostView.touchBar = makeTouchBar()
 
-		let window = NSWindow(
+		let window = TouchBarCustomizationWindow(
 			contentRect: NSRect(x: -10_000, y: -10_000, width: 1, height: 1),
 			styleMask: [.borderless],
 			backing: .buffered,
@@ -466,8 +484,6 @@ extension AppController {
         windowController.showWindow(self)
         window.delegate = self
         window.orderFrontRegardless()
-        // Track event
-        Analytics.trackEvent("AppController.showDebugConsole()")
     }
 }
 // swiftlint:enable file_length

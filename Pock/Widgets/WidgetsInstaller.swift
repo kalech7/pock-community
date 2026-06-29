@@ -115,11 +115,12 @@ internal final class WidgetsInstaller: NSDocument {
             if manager.fileExists(at: toLocation.path, directory: true) {
                 try? manager.removeItem(at: toLocation)
             }
-            if removeSource {
+			if removeSource {
 				try manager.moveItem(at: fromLocation, to: toLocation)
 			} else {
 				try manager.copyItem(at: fromLocation, to: toLocation)
 			}
+			try repairFrameworkSymlinks(in: toLocation)
 			completion(widget, nil)
 		} catch {
 			Roger.error(error)
@@ -262,6 +263,45 @@ internal final class WidgetsInstaller: NSDocument {
 		} catch {
 			completion(nil, Error.cantCopy(reason: error.localizedDescription))
 		}
+	}
+
+	private func repairFrameworkSymlinks(in widgetLocation: URL) throws {
+		guard let enumerator = manager.enumerator(
+			at: widgetLocation,
+			includingPropertiesForKeys: [.isDirectoryKey],
+			options: [.skipsHiddenFiles]
+		) else {
+			return
+		}
+		for case let frameworkURL as URL in enumerator where frameworkURL.pathExtension == "framework" {
+			try repairFrameworkSymlink(at: frameworkURL.appendingPathComponent("Resources"))
+			try repairFrameworkSymlink(at: frameworkURL.appendingPathComponent(frameworkURL.deletingPathExtension().lastPathComponent))
+			try repairFrameworkSymlink(at: frameworkURL.appendingPathComponent("Versions/Current"))
+		}
+	}
+
+	private func repairFrameworkSymlink(at url: URL) throws {
+		var isDirectory: ObjCBool = false
+		guard manager.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue else {
+			return
+		}
+		if (try? manager.destinationOfSymbolicLink(atPath: url.path)) != nil {
+			return
+		}
+		let data = try Data(contentsOf: url, options: .mappedIfSafe)
+		guard data.count <= 512,
+			  let target = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+			  target.isEmpty == false,
+			  target.hasPrefix("/") == false,
+			  target.contains("\0") == false else {
+			return
+		}
+		let targetURL = url.deletingLastPathComponent().appendingPathComponent(target)
+		guard manager.fileExists(atPath: targetURL.path) else {
+			return
+		}
+		try manager.removeItem(at: url)
+		try manager.createSymbolicLink(atPath: url.path, withDestinationPath: target)
 	}
 	
 	// MARK: Clear temporary widgets folder

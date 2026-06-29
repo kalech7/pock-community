@@ -48,6 +48,11 @@
 "onboard.footer" = "Folgen Sie den Anweisungen in der Touch Bar, um Standard-Widgets zu installieren";
 "onboard.open-preferences" = "Einstellungen öffnen…";
 "onboard.continue-with-default-settings" = "Mit den Standardeinstellungen fortfahren";
+"onboard.setup.title" = "Schnelle Einrichtung";
+"onboard.accessibility.required" = "Erlaube Bedienungshilfen, damit Pock die Touch-Bar-Steuerung korrekt verwalten kann.";
+"onboard.accessibility.granted" = "Bedienungshilfen sind aktiviert.";
+"onboard.accessibility.open-settings" = "Bedienungshilfen öffnen";
+"onboard.launch-at-login" = "Pock beim Anmelden starten";
 
 // MARK: Preferences
 "preferences.window.title" = "Einstellungen";

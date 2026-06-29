@@ -42,7 +42,9 @@ internal struct Preferences {
 		case checkForUpdatesOnceADay
 		case userDefinedPresentationMode
 		case didShowOnBoard
+		case didCompleteSetupOnBoard
         case showDebugConsoleOnLaunch
+		case pockTouchBarItemIdentifiers
 	}
 	static subscript<T>(_ key: Keys) -> T {
         get {
@@ -74,8 +76,12 @@ internal struct Preferences {
                     return PresentationMode.undefined as! T
                 case .didShowOnBoard:
                     return false as! T
+				case .didCompleteSetupOnBoard:
+					return false as! T
                 case .showDebugConsoleOnLaunch:
                     return false as! T
+				case .pockTouchBarItemIdentifiers:
+					return [] as! T
                 }
             }
             return value

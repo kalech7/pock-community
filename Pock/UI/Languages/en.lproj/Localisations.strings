@@ -48,6 +48,11 @@
 "onboard.footer" = "Follow the instructions in the Touch Bar to install default widgets";
 "onboard.open-preferences" = "Open Preferences…";
 "onboard.continue-with-default-settings" = "Continue with default settings";
+"onboard.setup.title" = "Quick setup";
+"onboard.accessibility.required" = "Allow Accessibility so Pock can manage Touch Bar controls correctly.";
+"onboard.accessibility.granted" = "Accessibility permission is enabled.";
+"onboard.accessibility.open-settings" = "Open Accessibility Settings";
+"onboard.launch-at-login" = "Start Pock when I log in";
 
 // MARK: Preferences
 "preferences.window.title" = "Preferences";

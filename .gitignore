@@ -6,6 +6,7 @@ Podfile.lock
 Pods
 
 ## Userdata
+.idea/
 clear_pock_environment
 Pock.xcodeproj/xcuserdata
 Pock.xcworkspace/xcuserdata

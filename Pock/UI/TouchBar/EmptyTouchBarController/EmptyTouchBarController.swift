@@ -25,14 +25,15 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 	
 	// MARK: Mouse Support
 	private var buttonWithMouseOver: NSButton?
+	private var isHandlingAction = false
 	private var touchBarView: NSView? {
 		guard let views = NSFunctionRow._topLevelViews() as? [NSView], let view = views.last else {
-            Roger.debug("Touch Bar is not available.")
-            return nil
+			Roger.debug("Touch Bar is not available.")
+			return nil
 		}
 		return view
 	}
-	public override var parentView: NSView! {
+	public override var parentView: NSView? {
 		get {
 			return touchBarView
 		} set {
@@ -44,6 +45,22 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 		super.present()
 		updateUIState()
 	}
+
+	override func reloadScreenEdgeController() {
+		guard let parentView = parentView else {
+			edgeController?.tearDown(invalidate: true)
+			edgeController = nil
+			return
+		}
+		edgeController = PKScreenEdgeController(mouseDelegate: self, parentView: parentView)
+	}
+
+	override var visibleRectWidth: CGFloat {
+		get {
+			return parentView?.visibleRect.width ?? 0
+		}
+		set {}
+	}
 	
 	private func updateUIState() {
 		switch state {
@@ -51,7 +68,7 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 			informativeLabel.stringValue = "widgets.empty.add-widgets-to-pock".localized
 			actionButton.tag = 0
 			actionButton.title = "general.action.customize".localized
-			
+
 		case .installDefault:
 			informativeLabel.stringValue = "widgets.defaults.tap-to-install".localized
 			actionButton.tag = 1
@@ -63,39 +80,53 @@ internal class EmptyTouchBarController: PKTouchBarMouseController {
 			self?.addIconViewAnimation()
 		}
 	}
-	
+
 	@IBAction private func actionButtonPressed(_ button: NSButton) {
-		defer {
-			dismiss()
+		guard !isHandlingAction else {
+			return
 		}
+		isHandlingAction = true
 		switch button.tag {
 		case 0:
-			AppController.shared.openPockCustomizationPalette()
+			dismiss()
+			async(after: 0.1) {
+				AppController.shared.openPockCustomizationPalette()
+			}
 		case 1:
+			dismiss()
 			AppController.shared.reInstallDefaultWidgets()
 		default:
 			return
 		}
 	}
-	
+
 	// MARK: Mouse stuff
 	public override func screenEdgeController(_ controller: PKScreenEdgeController, mouseClickAtLocation location: NSPoint, in view: NSView) {
+		guard !isHandlingAction else {
+			return
+		}
 		guard let button = button(at: location) else {
 			return
 		}
 		actionButtonPressed(button)
 	}
-	
+
 	public override func updateCursorLocation(_ location: NSPoint?) {
-		super.updateCursorLocation(location)
+		guard !isHandlingAction, touchBarView != nil else {
+			return
+		}
+		if let location = location {
+			cursorView?.frame.origin = location
+		}
 		buttonWithMouseOver?.isHighlighted = false
 		buttonWithMouseOver = nil
 		buttonWithMouseOver = button(at: location)
 		buttonWithMouseOver?.isHighlighted = true
 	}
-	
+
 	private func button(at location: NSPoint?) -> NSButton? {
-		guard let parentView = parentView,
+		guard !isHandlingAction,
+			  let parentView = touchBarView,
 			  let view = parentView.subview(in: parentView, at: location, of: "NSTouchBarItemContainerView") else {
 			return nil
 		}

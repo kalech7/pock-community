@@ -9,10 +9,6 @@ target 'Pock' do
   # PockKit
   pod 'PockKit', :git => 'git@github.com:pock/pockkit.git'
 
-  # Analytics
-  pod 'AppCenter/Analytics'
-  pod 'AppCenter/Crashes'
-
   # Utils
   pod 'Magnet'
   pod 'Zip'
