@@ -13,13 +13,13 @@ This document describes how Pock Community releases are prepared. Pock Community
 Use the app version from the Xcode project. The current project version is:
 
 - Marketing version: `0.10.0`
-- Build version: `6`
-- Release label: `0.10.0-6`
+- Build version: `7`
+- Release label: `0.10.0-7`
 
 Use tags such as:
 
 ```text
-v0.10.0-6
+v0.10.0-7
 ```
 
 ## Pre-Release Checklist
@@ -36,14 +36,20 @@ v0.10.0-6
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace Pock.xcworkspace -scheme "Pock (Pock project)" -configuration Release build CODE_SIGNING_ALLOWED=NO
 ```
 
-8. Run the local installer smoke test:
+8. Sign the app with the local identity used for previous permission-preserving builds:
+
+```sh
+./scripts/sign_app.sh "$HOME/Library/Developer/Xcode/DerivedData/Pock-fgcdlnkhwvjnuwbrhagpqbmhbpcs/Build/Products/Release/Pock.app"
+```
+
+9. Run the local installer smoke test:
 
 ```sh
 ./scripts/install_app.sh
 ```
 
-9. Test on a Touch Bar Mac when available.
-10. Review release notes for the visible unofficial-fork disclaimer.
+10. Test on a Touch Bar Mac when available.
+11. Review release notes for the visible unofficial-fork disclaimer.
 
 ## Build A Zip Artifact
 
@@ -51,7 +57,8 @@ After a successful Release build:
 
 ```sh
 APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/Pock-fgcdlnkhwvjnuwbrhagpqbmhbpcs/Build/Products/Release/Pock.app"
-ditto -c -k --keepParent "$APP_PATH" "Pock-Community-0.10.0-6.zip"
+./scripts/sign_app.sh "$APP_PATH"
+(cd "$(dirname "$APP_PATH")" && zip -qry -X --symlinks "Pock-Community-0.10.0-7.zip" "Pock.app")
 ```
 
 If the DerivedData path differs, locate the newest Release app:
@@ -63,10 +70,10 @@ find "$HOME/Library/Developer/Xcode/DerivedData" -path "*/Build/Products/Release
 ## Create A GitHub Release
 
 ```sh
-git tag v0.10.0-6
-git push origin v0.10.0-6
-gh release create v0.10.0-6 Pock-Community-0.10.0-6.zip \
-  --title "Pock Community 0.10.0-6" \
+git tag v0.10.0-7
+git push origin v0.10.0-7
+gh release create v0.10.0-7 Pock-Community-0.10.0-7.zip \
+  --title "Pock Community 0.10.0-7" \
   --notes-file .github/RELEASE_TEMPLATE.md
 ```
 
@@ -82,7 +89,18 @@ Publishing to `main` does not update users automatically. Maintainers must publi
 
 ## Signing And Notarization
 
-Unsigned builds may show macOS security warnings. Signed and notarized releases are recommended for public users.
+Unsigned builds may show macOS security warnings and may cause macOS to ask for Accessibility permissions again. Local maintainer builds should be signed with `Pock Local Code Signing` to preserve the same code-signing requirement across versions.
+
+For local permission-preserving builds:
+
+```sh
+./scripts/sign_app.sh /Applications/Pock.app
+codesign -d -r- /Applications/Pock.app
+```
+
+The designated requirement should keep the same bundle identifier and local certificate hash across updates.
+
+Signed and notarized releases are recommended for public users.
 
 Requirements:
 
@@ -94,11 +112,11 @@ Basic flow:
 
 ```sh
 codesign --force --deep --options runtime --sign "Developer ID Application: NAME (TEAMID)" /Applications/Pock.app
-ditto -c -k --keepParent /Applications/Pock.app Pock-Community-0.10.0-6.zip
-xcrun notarytool submit Pock-Community-0.10.0-6.zip --keychain-profile "PockCommunityNotary" --wait
+(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.0-7.zip Pock.app)
+xcrun notarytool submit Pock-Community-0.10.0-7.zip --keychain-profile "PockCommunityNotary" --wait
 xcrun stapler staple /Applications/Pock.app
 xcrun stapler validate /Applications/Pock.app
-ditto -c -k --keepParent /Applications/Pock.app Pock-Community-0.10.0-6-notarized.zip
+(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.0-7-notarized.zip Pock.app)
 ```
 
 Do not commit certificates, passwords, provisioning profiles, or signing identities.

@@ -7,6 +7,7 @@ SCHEME="${SCHEME:-Pock (Pock project)}"
 CONFIGURATION="${CONFIGURATION:-Release}"
 APP_NAME="${APP_NAME:-Pock.app}"
 DESTINATION="${DESTINATION:-/Applications/${APP_NAME}}"
+SKIP_LOCAL_SIGNING="${SKIP_LOCAL_SIGNING:-0}"
 
 cd "$ROOT_DIR"
 
@@ -37,6 +38,13 @@ fi
 
 rm -rf "$DESTINATION"
 ditto "$APP_PATH" "$DESTINATION"
+
+if [[ "$SKIP_LOCAL_SIGNING" != "1" ]]; then
+  "$ROOT_DIR/scripts/sign_app.sh" "$DESTINATION"
+else
+  echo "Skipping local signing. macOS may ask for permissions again." >&2
+fi
+
 open "$DESTINATION"
 
 echo "Installed and opened ${DESTINATION}"

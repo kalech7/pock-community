@@ -9,6 +9,12 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.0-7 Community
+
+- Added local code signing for installed release builds so macOS can preserve existing permissions across updates.
+- Updated the local installer to sign `/Applications/Pock.app` with `Pock Local Code Signing` by default.
+- Removed accidental nested `Pock.app` bundles during signing to keep a single stable app identity on disk.
+
 ## 0.10.0-6 Community
 
 - Reduced idle widget resource usage by stopping scrolling-text timers when views leave the hierarchy.
