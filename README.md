@@ -8,6 +8,21 @@ This project remains licensed under the MIT license. See [LICENSE.md](LICENSE.md
 
 Contributions, bug reports, compatibility reports, and testers are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md), [MAINTAINERS.md](MAINTAINERS.md), and [BUILD_STATUS.md](BUILD_STATUS.md) before making larger changes.
 
+## Community App Identity
+
+This fork uses the `io.github.kalech7.pock-community` bundle identifier family
+so community builds can be distributed separately from the original Pock app:
+
+- App: `io.github.kalech7.pock-community`
+- Relaunch helper: `io.github.kalech7.pock-community.relaunch`
+- Quick Look widget extension: `io.github.kalech7.pock-community.QLPockWidget`
+- Widget document type: `io.github.kalech7.pock-community.widget`
+- Widget archive document type: `io.github.kalech7.pock-community.widget.archive`
+
+Changing this identity makes macOS treat Pock Community as a separate app. Users
+may need to grant permissions again and existing preferences from the original
+Pock bundle identifier are not reused automatically.
+
 This fork should prefer small, safe, reviewable maintenance changes. Do not add new paid services, telemetry, analytics, or tracking. The original README content follows below for attribution and historical context.
 
 ---

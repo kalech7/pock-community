@@ -28,7 +28,7 @@
 		<dict>
 			<key>QLSupportedContentTypes</key>
 			<array>
-				<string>com.pigigaldi.pock.widget</string>
+				<string>io.github.kalech7.pock-community.widget</string>
 			</array>
 			<key>QLSupportsSearchableItems</key>
 			<false/>

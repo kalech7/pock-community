@@ -18,3 +18,16 @@ target 'Pock' do
   pod 'Zip'
 
 end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    target.build_configurations.each do |config|
+      deployment_target = config.build_settings['MACOSX_DEPLOYMENT_TARGET']
+      next if deployment_target.nil?
+
+      if Gem::Version.new(deployment_target) < Gem::Version.new('10.13')
+        config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '10.13'
+      end
+    end
+  end
+end
