@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 	
 	private var preferencesMenuItem: NSMenuBadgeItem!
 	private var manageWidgetsMenuItem: NSMenuBadgeItem!
+	private weak var mainBarUpdateBadge: NSView?
 
 	func applicationDidFinishLaunching(_ aNotification: Notification) {
 		/// Set Roger allowed log levels
@@ -256,20 +257,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 			self.preferencesMenuItem.setBadge(coreBadge > 0 ? "\(coreBadge)" : nil)
 			self.manageWidgetsMenuItem.setBadge(widgetsToUpdate > 0 ? "\(widgetsToUpdate)" : nil)
 			if coreBadge + widgetsToUpdate > 0 {
-				let base = self.mainBarItem.button
-				let badge = NSView(frame: .zero)
-				badge.wantsLayer = true
-				badge.layer?.backgroundColor = NSColor.systemRed.cgColor
-				badge.layer?.cornerRadius = 2
-				base?.addSubview(badge)
-				badge.height(4)
-				badge.width(4)
-				badge.rightToSuperview(offset: -3)
-				badge.bottomToSuperview(offset: -4)
+				self.showMainBarUpdateBadge()
 			} else {
-				self.mainBarItem.button?.subviews.forEach({ $0.removeFromSuperview() })
+				self.hideMainBarUpdateBadge()
 			}
 		}
+	}
+
+	private func showMainBarUpdateBadge() {
+		guard mainBarUpdateBadge == nil, let base = mainBarItem.button else {
+			return
+		}
+		let badge = NSView(frame: .zero)
+		badge.wantsLayer = true
+		badge.layer?.backgroundColor = NSColor.systemRed.cgColor
+		badge.layer?.cornerRadius = 2
+		base.addSubview(badge)
+		badge.height(4)
+		badge.width(4)
+		badge.rightToSuperview(offset: -3)
+		badge.bottomToSuperview(offset: -4)
+		mainBarUpdateBadge = badge
+	}
+
+	private func hideMainBarUpdateBadge() {
+		mainBarUpdateBadge?.removeFromSuperview()
+		mainBarUpdateBadge = nil
 	}
 
 	// MARK: Open website

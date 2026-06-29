@@ -9,6 +9,14 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.0-6 Community
+
+- Reduced idle widget resource usage by stopping scrolling-text timers when views leave the hierarchy.
+- Fixed scrolling text loop accounting so finite widget animations stop as intended.
+- Reduced queued drag-location updates during high-frequency Touch Bar drag events.
+- Avoided blocking the main thread during widget update checks and Touch Bar reloads.
+- Reused the menu bar update badge instead of stacking duplicate badge views.
+
 ## 0.10.0-5 Community
 
 - Removed telemetry, analytics, and crash-reporting dependencies from the app and CocoaPods setup.

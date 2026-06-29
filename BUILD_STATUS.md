@@ -14,7 +14,7 @@ Pock Community builds successfully in the local development environment with ful
 - Dependency manager: CocoaPods.
 - Main project files: `Pock.xcodeproj`, `Pock.xcworkspace`, `Podfile`.
 - Deployment target: macOS 10.15.
-- App version: `0.10.0` build `5`.
+- App version: `0.10.0` build `6`.
 - App bundle identifier: `io.github.kalech7.pock-community`.
 
 ## Dependencies
@@ -35,7 +35,6 @@ Telemetry, analytics, and crash-reporting dependencies are not used by this fork
 pod install
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -list -workspace Pock.xcworkspace
 DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace Pock.xcworkspace -scheme "Pock (Pock project)" -configuration Release build CODE_SIGNING_ALLOWED=NO
-./scripts/install_app.sh
 ```
 
 ## Results
@@ -43,7 +42,7 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild -workspace P
 - `pod install`: succeeded.
 - `xcodebuild -list -workspace Pock.xcworkspace`: succeeded.
 - Release build with `CODE_SIGNING_ALLOWED=NO`: succeeded.
-- `./scripts/install_app.sh`: built Release, copied `Pock.app` to `/Applications`, and opened it.
+- `./scripts/install_app.sh`: not run during this verification because it replaces `/Applications/Pock.app`; use it for a local smoke test when that is intended.
 
 ## Known Warnings
 

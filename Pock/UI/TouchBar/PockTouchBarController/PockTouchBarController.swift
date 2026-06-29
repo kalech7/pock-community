@@ -19,6 +19,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	/// Data
 	private(set) var widgets: [NSTouchBarItem.Identifier: PKWidgetInfo] = [:]
 	private(set) var cachedItems: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
+	private var cachedMouseDelegates: [PKScreenEdgeMouseDelegate] = []
 	
 	private var currentItems: [NSTouchBarItem.Identifier] {
 		return touchBar?.itemIdentifiers ?? []
@@ -114,6 +115,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	private func flushWidgetItems() {
 		cachedItems.removeAll()
+		cachedMouseDelegates.removeAll()
 		widgets.removeAll()
 	}
 
@@ -149,6 +151,9 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		Roger.info("[\(identifier.rawValue)][item] - initializes")
 		let item = PKWidgetTouchBarItem(widget: widget)
 		cachedItems[identifier] = item
+		if let delegate = item?.widget as? PKScreenEdgeMouseDelegate {
+			cachedMouseDelegates.append(delegate)
+		}
 		return item
 	}
 	
@@ -176,7 +181,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	// MARK: Mouse delegates
 	
 	private var mouseDelegates: [PKScreenEdgeMouseDelegate] {
-		return cachedItems.values.compactMap({ ($0 as? PKWidgetTouchBarItem)?.widget as? PKScreenEdgeMouseDelegate })
+		return cachedMouseDelegates
 	}
 	
 	// MARK: Mouse Overrides

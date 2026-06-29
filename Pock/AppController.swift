@@ -36,6 +36,8 @@ internal class AppController: NSResponder {
 	
 	/// Once (upon) a day timer
 	private var onceADayTimer: Timer?
+	private var pendingTouchBarReload: DispatchWorkItem?
+	private var shouldRestoreTouchBarAfterUnlock = false
 	
 	/// Current window controller
 	private var windowController: NSWindowController?
@@ -88,16 +90,31 @@ internal class AppController: NSResponder {
         let notificationCenter = DistributedNotificationCenter.default()
         // listen for `screen is locked`
         notificationCenter.publisher(for: .init("com.apple.screenIsLocked")).sink { [weak self] _ in
+            guard let self = self else {
+                return
+            }
             Roger.debug("Screen is locked. Tearing down PockTouchBarController...")
-            self?.isLocked = true
-            TouchBarHelper.markTouchBarAsDimmed(true)
+            self.shouldRestoreTouchBarAfterUnlock = self.pockTouchBarController?.isVisible == true
+            self.isLocked = true
+            if self.shouldRestoreTouchBarAfterUnlock {
+                self.tearDownTouchBar()
+            } else {
+                TouchBarHelper.markTouchBarAsDimmed(true)
+            }
         }.store(in: &disposeBag)
         // listen for `screen is unlocked`
         notificationCenter.publisher(for: .init("com.apple.screenIsUnlocked")).sink { [weak self] _ in
-            self?.isLocked = false
-            if self?.pockTouchBarController?.isVisible == false {
+            guard let self = self else {
+                return
+            }
+            self.isLocked = false
+            TouchBarHelper.markTouchBarAsDimmed(false)
+            if self.shouldRestoreTouchBarAfterUnlock {
                 Roger.debug("Screen is unlocked. Preparing PockTouchBarController...")
-                TouchBarHelper.markTouchBarAsDimmed(false)
+                self.shouldRestoreTouchBarAfterUnlock = false
+                self.prepareTouchBar()
+            } else if self.pockTouchBarController?.isVisible == false {
+                Roger.debug("Screen is unlocked. PockTouchBarController remains hidden.")
             } else {
                 Roger.debug("Screen is unlocked. PockTouchBarController is already visible...")
             }
@@ -145,9 +162,17 @@ internal class AppController: NSResponder {
 	/// Reload
 	@objc internal func reload(shouldFetchLatestVersions: Bool) {
 		func _reload() {
+			pendingTouchBarReload?.cancel()
 			tearDownTouchBar()
-			dsleep(0.1)
-			prepareTouchBar()
+			let workItem = DispatchWorkItem { [weak self] in
+				guard let self = self else {
+					return
+				}
+				self.prepareTouchBar()
+				self.pendingTouchBarReload = nil
+			}
+			pendingTouchBarReload = workItem
+			DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: workItem)
 		}
 		if shouldFetchLatestVersions {
 			reloadWidgets { [weak self] in

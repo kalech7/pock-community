@@ -26,4 +26,6 @@ post_install do |installer|
       end
     end
   end
+
+  system('ruby', File.expand_path('scripts/patch-pockkit-resource-usage.rb', __dir__), __dir__)
 end

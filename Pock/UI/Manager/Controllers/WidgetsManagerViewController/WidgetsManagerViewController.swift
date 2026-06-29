@@ -223,10 +223,11 @@ extension WidgetsManagerViewController {
 		checkForWidgetsUpdateButton.isEnabled = false
 		checkForWidgetsUpdateButton.title = "general.action.checking".localized
 		AppController.shared.fetchLatestVersions { [weak self] in
-			dsleep(1)
-			self?.checkForWidgetsUpdateButton.isEnabled = true
-			self?.checkForWidgetsUpdateButton.title = "general.action.check-for-updates".localized
-			self?.reload()
+			async(after: 1) { [weak self] in
+				self?.checkForWidgetsUpdateButton.isEnabled = true
+				self?.checkForWidgetsUpdateButton.title = "general.action.check-for-updates".localized
+				self?.reload()
+			}
 		}
 	}
     

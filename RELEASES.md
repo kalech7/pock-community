@@ -13,13 +13,13 @@ This document describes how Pock Community releases are prepared. Pock Community
 Use the app version from the Xcode project. The current project version is:
 
 - Marketing version: `0.10.0`
-- Build version: `5`
-- Release label: `0.10.0-5`
+- Build version: `6`
+- Release label: `0.10.0-6`
 
 Use tags such as:
 
 ```text
-v0.10.0-5
+v0.10.0-6
 ```
 
 ## Pre-Release Checklist
@@ -51,7 +51,7 @@ After a successful Release build:
 
 ```sh
 APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/Pock-fgcdlnkhwvjnuwbrhagpqbmhbpcs/Build/Products/Release/Pock.app"
-ditto -c -k --keepParent "$APP_PATH" "Pock-Community-0.10.0-5.zip"
+ditto -c -k --keepParent "$APP_PATH" "Pock-Community-0.10.0-6.zip"
 ```
 
 If the DerivedData path differs, locate the newest Release app:
@@ -63,10 +63,10 @@ find "$HOME/Library/Developer/Xcode/DerivedData" -path "*/Build/Products/Release
 ## Create A GitHub Release
 
 ```sh
-git tag v0.10.0-5
-git push origin v0.10.0-5
-gh release create v0.10.0-5 Pock-Community-0.10.0-5.zip \
-  --title "Pock Community 0.10.0-5" \
+git tag v0.10.0-6
+git push origin v0.10.0-6
+gh release create v0.10.0-6 Pock-Community-0.10.0-6.zip \
+  --title "Pock Community 0.10.0-6" \
   --notes-file .github/RELEASE_TEMPLATE.md
 ```
 
@@ -94,11 +94,11 @@ Basic flow:
 
 ```sh
 codesign --force --deep --options runtime --sign "Developer ID Application: NAME (TEAMID)" /Applications/Pock.app
-ditto -c -k --keepParent /Applications/Pock.app Pock-Community-0.10.0-5.zip
-xcrun notarytool submit Pock-Community-0.10.0-5.zip --keychain-profile "PockCommunityNotary" --wait
+ditto -c -k --keepParent /Applications/Pock.app Pock-Community-0.10.0-6.zip
+xcrun notarytool submit Pock-Community-0.10.0-6.zip --keychain-profile "PockCommunityNotary" --wait
 xcrun stapler staple /Applications/Pock.app
 xcrun stapler validate /Applications/Pock.app
-ditto -c -k --keepParent /Applications/Pock.app Pock-Community-0.10.0-5-notarized.zip
+ditto -c -k --keepParent /Applications/Pock.app Pock-Community-0.10.0-6-notarized.zip
 ```
 
 Do not commit certificates, passwords, provisioning profiles, or signing identities.
