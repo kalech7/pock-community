@@ -672,6 +672,7 @@
 				FE26ADECFF38E70242F074EC /* [CP] Embed Pods Frameworks */,
 				34E78F5F264EB0FD001CBA4E /* Embed App Extensions */,
 				34A8BA6726CC06600070B0EC /* Close any Pock instances */,
+				518C916242C235F670BCC91F /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -836,6 +837,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\necho \"Killing any Pock instances\"\nif pgrep Pock; then killall Pock; fi\ncp -fr $TARGET_BUILD_DIR/$PRODUCT_NAME.app /Applications/$PRODUCT_NAME.app\n";
+		};
+		518C916242C235F670BCC91F /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Pock/Pods-Pock-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Pock/Pods-Pock-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Pock/Pods-Pock-resources.sh\"\n";
+			showEnvVarsInLog = 0;
 		};
 		FE26ADECFF38E70242F074EC /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
