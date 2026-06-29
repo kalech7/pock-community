@@ -967,7 +967,7 @@
 				DEVELOPMENT_TEAM = 788D9WZ9Z3;
 				ENABLE_HARDENED_RUNTIME = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pigigaldi.pock.relaunch;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.kalech7.pock-community.relaunch";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -984,7 +984,7 @@
 				DEVELOPMENT_TEAM = 788D9WZ9Z3;
 				ENABLE_HARDENED_RUNTIME = YES;
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pigigaldi.pock.relaunch;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.kalech7.pock-community.relaunch";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
@@ -1129,7 +1129,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MARKETING_VERSION = 0.10.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pigigaldi.pock;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.kalech7.pock-community";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "${SRCROOT}/Pock/Private/Bridging-Header.h";
@@ -1163,7 +1163,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MARKETING_VERSION = 0.10.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pigigaldi.pock;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.kalech7.pock-community";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_OBJC_BRIDGING_HEADER = "${SRCROOT}/Pock/Private/Bridging-Header.h";
@@ -1192,7 +1192,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MARKETING_VERSION = 0.10.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pigigaldi.pock.QLPockWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.kalech7.pock-community.QLPockWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;
@@ -1216,7 +1216,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.15;
 				MARKETING_VERSION = 0.10.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.pigigaldi.pock.QLPockWidget;
+				PRODUCT_BUNDLE_IDENTIFIER = "io.github.kalech7.pock-community.QLPockWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_VERSION = 5.0;

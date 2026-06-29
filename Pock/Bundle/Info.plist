@@ -23,7 +23,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.pigigaldi.pock.widget</string>
+				<string>io.github.kalech7.pock-community.widget</string>
 			</array>
 			<key>LSTypeIsPackage</key>
 			<integer>1</integer>
@@ -47,7 +47,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.pigigaldi.pock.widget.archive</string>
+				<string>io.github.kalech7.pock-community.widget.archive</string>
 			</array>
 			<key>LSTypeIsPackage</key>
 			<integer>1</integer>
@@ -102,7 +102,7 @@
 				<string></string>
 			</dict>
 			<key>UTTypeIdentifier</key>
-			<string>com.pigigaldi.pock.widget</string>
+			<string>io.github.kalech7.pock-community.widget</string>
 			<key>UTTypeReferenceURL</key>
 			<string>https://pock.app</string>
 			<key>UTTypeTagSpecification</key>
@@ -134,7 +134,7 @@
 				<string>ARCHIVE</string>
 			</dict>
 			<key>UTTypeIdentifier</key>
-			<string>com.pigigaldi.pock.widget.archive</string>
+			<string>io.github.kalech7.pock-community.widget.archive</string>
 			<key>UTTypeReferenceURL</key>
 			<string>https://pock.app</string>
 			<key>UTTypeTagSpecification</key>

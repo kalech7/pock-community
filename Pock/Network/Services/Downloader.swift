@@ -101,16 +101,12 @@ internal class Downloader: NSObject, URLSessionTaskDelegate, URLSessionDownloadD
 
 internal class DefaultWidgetsDownloader {
 	
-	#if DEBUG
-	private let defaultWidgetsURLString: String = "https://stage.pock.app/api/defaults.php"
-	#else
-	private let defaultWidgetsURLString: String = "https://pock.app/api/defaults.php"
-	#endif
+	private let defaultWidgetsURLString: String = "https://kalech7.github.io/pock-community-widgets/catalog/defaults.json"
 	
 	// MARK: Fetch default widgets list
 	
 	internal func fetchDefaultWidgets(_ completion: @escaping ([String: URL], DownloaderError?) -> Void) {
-		guard let url = URL(string: defaultWidgetsURLString + "?core=\(Updater.fullAppVersion)") else {
+		guard let url = URL(string: defaultWidgetsURLString) else {
 			completion([:], .invalidFileURL)
 			return
 		}

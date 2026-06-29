@@ -54,11 +54,7 @@ internal class Updater {
 	
 	// MARK: Netowrk core-info
 	
-	#if DEBUG
-	private let latestVersionURLString: String = "https://stage.pock.app/api/latestVersions.json"
-	#else
-	private let latestVersionURLString: String = "https://pock.app/api/latestVersions.json"
-	#endif
+	private let latestVersionURLString: String = "https://kalech7.github.io/pock-community-widgets/catalog/latestVersions.json"
 	
 	// MARK: Cache (?)
 	static private(set) var cachedLatestReleases: LatestReleases?
