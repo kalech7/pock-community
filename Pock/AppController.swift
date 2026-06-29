@@ -40,9 +40,11 @@ internal class AppController: NSResponder {
 	
 	/// Current window controller
 	private var windowController: NSWindowController?
-    
-    /// Debug console controller
-    private var debugConsoleController: NSWindowController?
+	private var customizationWindowController: NSWindowController?
+	private weak var customizationHostView: TouchBarCustomizationHostView?
+
+	/// Debug console controller
+	private var debugConsoleController: NSWindowController?
 
 	/// Private initialiser
 	private override init() {
@@ -297,10 +299,13 @@ extension AppController: NSTouchBarDelegate {
 	/// Open customization menu
 	@objc internal func openPockCustomizationPalette() {
 		if pockTouchBarController == nil {
+			prepareTouchBar()
+		}
+		guard pockTouchBarController != nil else {
 			return
 		}
 		pockTouchBarController.minimize()
-		NSApp.touchBar = makeTouchBar()
+		prepareCustomizationHost()
 		addCustomizationObservers()
 		async(after: 0.375) {
 			NSApp.toggleTouchBarCustomizationPalette(self)
@@ -350,10 +355,54 @@ extension AppController: NSTouchBarDelegate {
 	}
 	
 	@objc private func didExitCustomization(_ sender: Any?) {
-		NSApp.touchBar = nil
+		removeCustomizationObservers()
+		customizationWindowController?.close()
+		customizationWindowController = nil
+		customizationHostView = nil
 		pockTouchBarController.present()
 	}
 	
+}
+
+private final class TouchBarCustomizationHostView: NSView {
+	weak var appController: AppController?
+
+	override var acceptsFirstResponder: Bool {
+		return true
+	}
+
+	override func makeTouchBar() -> NSTouchBar? {
+		return appController?.makeTouchBar()
+	}
+}
+
+extension AppController {
+	private func prepareCustomizationHost() {
+		customizationWindowController?.close()
+
+		let hostView = TouchBarCustomizationHostView(frame: NSRect(x: 0, y: 0, width: 1, height: 1))
+		hostView.appController = self
+		hostView.touchBar = makeTouchBar()
+
+		let window = NSWindow(
+			contentRect: NSRect(x: -10_000, y: -10_000, width: 1, height: 1),
+			styleMask: [.borderless],
+			backing: .buffered,
+			defer: false
+		)
+		window.contentView = hostView
+		window.backgroundColor = .clear
+		window.isOpaque = false
+		window.hasShadow = false
+		window.ignoresMouseEvents = true
+		window.level = .floating
+
+		customizationHostView = hostView
+		customizationWindowController = NSWindowController(window: window)
+		NSApp.activate(ignoringOtherApps: true)
+		window.makeKeyAndOrderFront(nil)
+		window.makeFirstResponder(hostView)
+	}
 }
 
 // MARK: Update once (upon) a day

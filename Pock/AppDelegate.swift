@@ -75,12 +75,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 	// MARK: Setup main bar menu items
 	private func addMainBarItem() {
 		if let button = mainBarItem.button {
-			button.image = NSImage(named: .pockInnerIcon)
-			button.image?.isTemplate = true
+			configureMainBarButton(button)
 			/// Create menu
 			setupMainBarMenuItems()
 			mainBarItem.menu = mainBarMenu
 		}
+	}
+
+	private func configureMainBarButton(_ button: NSStatusBarButton) {
+		button.toolTip = "Pock Community"
+		button.imagePosition = .imageOnly
+		guard let image = NSImage(named: .pockInnerIcon)?.copy() as? NSImage else {
+			Roger.error("Missing menu bar icon asset: `\(NSImage.Name.pockInnerIcon)`")
+			button.title = "Pock"
+			button.image = nil
+			return
+		}
+		image.isTemplate = true
+		image.size = NSSize(width: 18, height: 18)
+		button.title = ""
+		button.image = image
 	}
 	
 	// MARK: Advanced menu
