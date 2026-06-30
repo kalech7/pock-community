@@ -37,6 +37,7 @@ internal class AppController: NSResponder {
 	/// Once (upon) a day timer
 	private var onceADayTimer: Timer?
 	private var pendingTouchBarReload: DispatchWorkItem?
+	private var pendingTouchBarRestore: DispatchWorkItem?
 	private var shouldRestoreTouchBarAfterUnlock = false
 	
 	/// Current window controller
@@ -62,6 +63,7 @@ internal class AppController: NSResponder {
 		prepareOnceADayTimer()
 		clearTemporaryWidgetsFolder()
         startListeningForScreenLockNotifications()
+        startListeningForApplicationActivationNotifications()
         // Show fake badge for testing
         #if DEBUG
         NSApp.dockTile.badgeLabel = "stage"
@@ -86,6 +88,32 @@ internal class AppController: NSResponder {
     
     /// Listen for lock notifications
     private lazy var disposeBag = Set<AnyCancellable>()
+    private func startListeningForApplicationActivationNotifications() {
+        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)
+            .sink { [weak self] _ in
+                self?.restoreTouchBarAfterApplicationActivation()
+            }.store(in: &disposeBag)
+    }
+
+    private func restoreTouchBarAfterApplicationActivation() {
+        pendingTouchBarRestore?.cancel()
+        pendingTouchBarRestore = nil
+        guard isLocked == false, pockTouchBarController?.isVisible == true else {
+            return
+        }
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self,
+                  self.isLocked == false,
+                  self.pockTouchBarController?.isVisible == true else {
+                return
+            }
+            self.pockTouchBarController.restorePresentation()
+            self.pendingTouchBarRestore = nil
+        }
+        pendingTouchBarRestore = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
+    }
+
     private func startListeningForScreenLockNotifications() {
         let notificationCenter = DistributedNotificationCenter.default()
         // listen for `screen is locked`

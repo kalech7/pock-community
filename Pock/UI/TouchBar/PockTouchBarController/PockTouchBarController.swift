@@ -25,6 +25,14 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		return touchBar?.itemIdentifiers ?? []
 	}
 	private var emptyTouchBarController: EmptyTouchBarController?
+	private var presentationConfiguration: (placement: Int64, mode: PresentationMode) {
+		switch Preferences[.layoutStyle] as LayoutStyle {
+		case .withControlStrip:
+			return (0, .appWithControlStrip)
+		case .fullWidth:
+			return (1, .app)
+		}
+	}
 	
 	internal var allowedCustomizationIdentifiers: [NSTouchBarItem.Identifier] {
 		return Array(widgets.keys) + [.flexibleSpace]
@@ -79,23 +87,20 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			widgets[NSTouchBarItem.Identifier(widget.bundleIdentifier)] = widget
 		}
 		touchBar = nil
-		let placement: Int64
-		let presentationMode: PresentationMode
-		switch Preferences[.layoutStyle] as LayoutStyle {
-		case .withControlStrip:
-			placement = 0
-			presentationMode = .appWithControlStrip
-		case .fullWidth:
-			placement = 1
-			presentationMode = .app
-		}
+		let configuration = presentationConfiguration
 		isVisible = true
-		if #available (macOS 10.14, *) {
-			NSTouchBar.presentSystemModalTouchBar(touchBar, placement: placement, systemTrayItemIdentifier: nil)
-		} else {
-			NSTouchBar.presentSystemModalFunctionBar(touchBar, placement: placement, systemTrayItemIdentifier: nil)
+		TouchBarHelper.presentOnTop(touchBar, placement: configuration.placement)
+		TouchBarHelper.setPresentationMode(to: configuration.mode)
+		checkForBlankTouchBar()
+	}
+
+	internal func restorePresentation() {
+		guard AppController.shared.isLocked == false, isVisible else {
+			return
 		}
-		TouchBarHelper.setPresentationMode(to: presentationMode)
+		let configuration = presentationConfiguration
+		TouchBarHelper.presentOnTop(touchBar, placement: configuration.placement)
+		TouchBarHelper.setPresentationMode(to: configuration.mode)
 		checkForBlankTouchBar()
 	}
 	

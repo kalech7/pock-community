@@ -10,6 +10,7 @@ import CoreFoundation
 private let kPresentationModeGlobal  = "PresentationModeGlobal"   as CFString
 private let kTouchBarAgentIdentifier = "com.apple.touchbar.agent" as CFString
 private var isPockDimRequestInProgress = false
+private var closeButtonHideGeneration = 0
 
 private class CommandLineHelper {
 	@discardableResult
@@ -105,13 +106,50 @@ public class TouchBarHelper {
 	}
 	
 	@objc public static func hideCloseButtonIfNeeded() {
-		if let view = NSFunctionRow._topLevelViews().first(where: {
-			object_getClass($0) === NSClassFromString("NSFunctionRowBackgroundColorView")
-		}) as? NSView,
-		   let stackView = view.subviews.first(where: { $0 is NSStackView }) as? NSStackView,
-		   let closeButton = stackView.subviews.first(where: { $0 is NSButton }) {
-			closeButton.isHidden = true
+		DFRSystemModalShowsCloseBoxWhenFrontMost(false)
+		NSFunctionRow._topLevelViews().compactMap({ $0 as? NSView }).forEach({
+			hideCloseButton(in: $0)
+		})
+	}
+
+	internal static func hideCloseButtonIfNeededRepeatedly() {
+		closeButtonHideGeneration += 1
+		let generation = closeButtonHideGeneration
+		[0.0, 0.05, 0.15, 0.35, 0.75].forEach { delay in
+			async(after: delay) {
+				guard generation == closeButtonHideGeneration else {
+					return
+				}
+				TouchBarHelper.hideCloseButtonIfNeeded()
+			}
 		}
+	}
+
+	internal static func restoreCloseButtonIfNeeded() {
+		closeButtonHideGeneration += 1
+		DFRSystemModalShowsCloseBoxWhenFrontMost(true)
+	}
+
+	private static func hideCloseButton(in view: NSView) {
+		if object_getClass(view) === NSClassFromString("NSFunctionRowBackgroundColorView") {
+			view.subviews.compactMap({ $0 as? NSStackView }).forEach({
+				hideButtons(in: $0)
+			})
+			return
+		}
+		view.subviews.forEach({
+			hideCloseButton(in: $0)
+		})
+	}
+
+	private static func hideButtons(in view: NSView) {
+		if view is NSButton {
+			view.isHidden = true
+			return
+		}
+		view.subviews.forEach({
+			hideButtons(in: $0)
+		})
 	}
 
 	@objc public static func reloadTouchBarAgent(_ completion: ((Bool) -> Void)? = nil) {
@@ -143,18 +181,25 @@ public class TouchBarHelper {
 
 	// MARK: NSTouchBar helpers
 	@objc public static func presentOnTop(_ touchBar: NSTouchBar?) {
+		presentOnTop(touchBar, placement: 1)
+	}
+
+	internal static func presentOnTop(_ touchBar: NSTouchBar?, placement: Int64) {
 		guard let touchBar = touchBar else {
 			return
 		}
+		DFRSystemModalShowsCloseBoxWhenFrontMost(false)
 		if #available (macOS 10.14, *) {
-			NSTouchBar.presentSystemModalTouchBar(touchBar, placement: 1, systemTrayItemIdentifier: nil)
+			NSTouchBar.presentSystemModalTouchBar(touchBar, placement: placement, systemTrayItemIdentifier: nil)
 		} else {
-			NSTouchBar.presentSystemModalFunctionBar(touchBar, placement: 1, systemTrayItemIdentifier: nil)
+			NSTouchBar.presentSystemModalFunctionBar(touchBar, placement: placement, systemTrayItemIdentifier: nil)
 		}
+		hideCloseButtonIfNeededRepeatedly()
 	}
 
 	@objc public static func dismissFromTop(_ touchBar: NSTouchBar?) {
 		guard let touchBar = touchBar else {
+			restoreCloseButtonIfNeeded()
 			return
 		}
 		if #available (macOS 10.14, *) {
@@ -162,10 +207,12 @@ public class TouchBarHelper {
 		} else {
 			NSTouchBar.dismissSystemModalFunctionBar(touchBar)
 		}
+		restoreCloseButtonIfNeeded()
 	}
 
 	@objc public static func minimizeFromTop(_ touchBar: NSTouchBar?) {
 		guard let touchBar = touchBar else {
+			restoreCloseButtonIfNeeded()
 			return
 		}
 		if #available (macOS 10.14, *) {
@@ -173,6 +220,7 @@ public class TouchBarHelper {
 		} else {
 			NSTouchBar.minimizeSystemModalFunctionBar(touchBar)
 		}
+		restoreCloseButtonIfNeeded()
 	}
 
 	@objc public static func mainNavigationController() -> Any? {
