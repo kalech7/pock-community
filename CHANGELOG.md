@@ -9,6 +9,11 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-8 Community
+
+- Hid the Touch Bar system modal close button when Pock is presented.
+- Restored Pock's Touch Bar presentation after switching to another app.
+
 ## 0.10.0-7 Community
 
 - Added local code signing for installed release builds so macOS can preserve existing permissions across updates.
