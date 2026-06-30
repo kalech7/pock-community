@@ -9,6 +9,7 @@ import CoreFoundation
 
 private let kPresentationModeGlobal  = "PresentationModeGlobal"   as CFString
 private let kTouchBarAgentIdentifier = "com.apple.touchbar.agent" as CFString
+private var isPockDimRequestInProgress = false
 
 private class CommandLineHelper {
 	@discardableResult
@@ -96,6 +97,10 @@ public class TouchBarHelper {
 	}
 	
 	@objc public static func markTouchBarAsDimmed(_ dimmed: Bool) {
+		isPockDimRequestInProgress = true
+		defer {
+			isPockDimRequestInProgress = false
+		}
 		NSFunctionRow.markActiveFunctionRows(asDimmed: dimmed)
 	}
 	
@@ -186,6 +191,9 @@ extension NSFunctionRow {
 	
 	@objc static func s_markActiveFunctionRowsAsDimmed(_ dimmed: Bool) {
 		Roger.debug("[Pock]: Swizzled method: `NSFunctionRow.markActiveFunctionRowsAsDimmed` - [dimmed: \(dimmed)]")
+		guard isPockDimRequestInProgress else {
+			return
+		}
 		if dimmed {
 			AppController.shared.tearDownTouchBar()
 		} else {

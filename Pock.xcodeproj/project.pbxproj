@@ -835,7 +835,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\necho \"Killing any Pock instances\"\nif pgrep Pock; then killall Pock; fi\ncp -fr $TARGET_BUILD_DIR/$PRODUCT_NAME.app /Applications/$PRODUCT_NAME.app\n";
+			shellScript = "echo \"Killing any Pock instances\"\nif pgrep Pock; then killall Pock; fi\n";
 		};
 		FE26ADECFF38E70242F074EC /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
