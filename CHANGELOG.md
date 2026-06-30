@@ -12,7 +12,7 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 ## 0.10.1-8 Community
 
 - Hid the Touch Bar system modal close button when Pock is presented.
-- Restored Pock's Touch Bar presentation after switching to another app.
+- Restored Pock's Touch Bar presentation after switching, launching, or closing apps.
 
 ## 0.10.0-7 Community
 

@@ -37,7 +37,8 @@ internal class AppController: NSResponder {
 	/// Once (upon) a day timer
 	private var onceADayTimer: Timer?
 	private var pendingTouchBarReload: DispatchWorkItem?
-	private var pendingTouchBarRestore: DispatchWorkItem?
+	private var pendingTouchBarRestoreWorkItems: [DispatchWorkItem] = []
+	private var touchBarRestoreGeneration = 0
 	private var shouldRestoreTouchBarAfterUnlock = false
 	
 	/// Current window controller
@@ -89,29 +90,43 @@ internal class AppController: NSResponder {
     /// Listen for lock notifications
     private lazy var disposeBag = Set<AnyCancellable>()
     private func startListeningForApplicationActivationNotifications() {
-        NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)
-            .sink { [weak self] _ in
-                self?.restoreTouchBarAfterApplicationActivation()
-            }.store(in: &disposeBag)
+        let notificationCenter = NSWorkspace.shared.notificationCenter
+        [
+            NSWorkspace.didActivateApplicationNotification,
+            NSWorkspace.didLaunchApplicationNotification,
+            NSWorkspace.didTerminateApplicationNotification
+        ].forEach { notificationName in
+            notificationCenter.publisher(for: notificationName)
+                .sink { [weak self] _ in
+                    self?.scheduleTouchBarRestore()
+                }.store(in: &disposeBag)
+        }
     }
 
-    private func restoreTouchBarAfterApplicationActivation() {
-        pendingTouchBarRestore?.cancel()
-        pendingTouchBarRestore = nil
+    private func scheduleTouchBarRestore() {
+        pendingTouchBarRestoreWorkItems.forEach({ $0.cancel() })
+        pendingTouchBarRestoreWorkItems.removeAll()
         guard isLocked == false, pockTouchBarController?.isVisible == true else {
             return
         }
-        let workItem = DispatchWorkItem { [weak self] in
-            guard let self = self,
-                  self.isLocked == false,
-                  self.pockTouchBarController?.isVisible == true else {
-                return
+        touchBarRestoreGeneration += 1
+        let generation = touchBarRestoreGeneration
+        [0.05, 0.25, 0.6].forEach { delay in
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self = self,
+                      self.touchBarRestoreGeneration == generation,
+                      self.isLocked == false,
+                      self.pockTouchBarController?.isVisible == true else {
+                    return
+                }
+                self.pockTouchBarController.restorePresentation()
+                if delay == 0.6 {
+                    self.pendingTouchBarRestoreWorkItems.removeAll()
+                }
             }
-            self.pockTouchBarController.restorePresentation()
-            self.pendingTouchBarRestore = nil
+            pendingTouchBarRestoreWorkItems.append(workItem)
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
         }
-        pendingTouchBarRestore = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: workItem)
     }
 
     private func startListeningForScreenLockNotifications() {
