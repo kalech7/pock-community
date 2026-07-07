@@ -20,6 +20,8 @@
 "menu.general" = "General";
 "menu.about" = "About Pock";
 "menu.preferences" = "Preferences…";
+"menu.show-pock" = "Show Pock";
+"menu.native-touchbar-switch" = "Show native switch";
 // Widgets
 "menu.widgets" = "Widgets";
 "menu.widgets.manage-widgets" = "Manage widgets…";
@@ -65,7 +67,7 @@
 "preferences.layout.title" = "Layout";
 
 "preferences.double-control.title" = "Switch to default Touch Bar";
-"preferences.double-control.desc" = "Double press `^Control` key to toggle between Pock and System Touch Bar.";
+"preferences.double-control.desc" = "Press `Control + Option + Command + P` to toggle between Pock and System Touch Bar.";
 "preferences.default-touchbar.shows" = "Default Touch Bar shows:";
 "preferences.default-touchbar.desc" = "To work properly, Pock may override the default Touch Bar preferences.
 You can always configure default settings from `System Preferences > Keyboard` to adapt the Touch Bar to your needs.";

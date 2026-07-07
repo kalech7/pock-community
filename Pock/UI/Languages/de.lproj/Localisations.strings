@@ -20,6 +20,8 @@
 "menu.general" = "Allgemein";
 "menu.about" = "Über Pock";
 "menu.preferences" = "Einstellungen…";
+"menu.show-pock" = "Pock anzeigen";
+"menu.native-touchbar-switch" = "Nativen Schalter anzeigen";
 // Widgets
 "menu.widgets" = "Widgets";
 "menu.widgets.manage-widgets" = "Widgets verwalten…";
@@ -65,7 +67,7 @@
 "preferences.layout.title" = "Lay-out";
 
 "preferences.double-control.title" = "Zur Standard-Touch Bar wechseln";
-"preferences.double-control.desc" = "Drücken Sie zweimal die Taste \"^Control\", um von Pock zur System-Touch-Bar zu wechseln und umgekehrt.";
+"preferences.double-control.desc" = "Drücken Sie `Control + Option + Command + P`, um zwischen Pock und der System-Touch-Bar zu wechseln.";
 "preferences.default-touchbar.shows" = "Die Standard-TouchBar zeigt:";
 "preferences.default-touchbar.desc" = "Um richtig zu funktionieren, kann Pock die Standard-Touch-Bar-Einstellungen überschalten. Sie können jederzeit Standardeinstellungen unter \"Systemeinstellungen > Tastatur\" konfigurieren, um die Touch Bar an Ihre Bedürfnisse anzupassen.";
 

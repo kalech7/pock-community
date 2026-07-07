@@ -18,16 +18,15 @@ internal class NSMenuItemCustomView: NSView {
 	@IBOutlet internal private(set) weak var keyChar: NSTextField!
 
 	internal weak var item: NSMenuItem?
-    
-    override var intrinsicContentSize: NSSize {
-        mainLabel.sizeToFit()
-        keyModifier.sizeToFit()
-        keyChar.sizeToFit()
-        var orig = super.intrinsicContentSize
-        orig.width = mainLabel.frame.width + keyModifier.frame.width + keyChar.frame.width
-        orig.width += 32    
-        return orig
-    }
+
+	override var intrinsicContentSize: NSSize {
+		mainLabel.sizeToFit()
+		keyModifier.sizeToFit()
+		var orig = super.intrinsicContentSize
+		orig.width = mainLabel.frame.width + keyModifier.frame.width
+		orig.width += 48
+		return orig
+	}
 
 	internal static func new(title: String, target: AnyObject?, selector: Selector?, keyEquivalent: String?, isAlternate: Bool = false, height: CGFloat = 23) -> NSMenuItem {
 		let item = NSMenuItem(title: title, action: selector, keyEquivalent: keyEquivalent ?? "")
@@ -65,18 +64,46 @@ internal class NSMenuItemCustomView: NSView {
 			return
 		}
 		keyModifier.textColor = item?.isHighlighted == true ? .labelColor : .tertiaryLabelColor
-		keyChar.textColor = item?.isHighlighted == true ? .labelColor : .tertiaryLabelColor
 	}
 
 	override func viewDidMoveToWindow() {
 		super.viewDidMoveToWindow()
 		mainLabel.stringValue = item?.title ?? ""
+		updateShortcutLabels()
+	}
+
+	internal func updateShortcutLabels() {
 		guard item?.submenu == nil, item?.keyEquivalent.isEmpty == false else {
+			keyModifier.isHidden = true
+			keyChar.isHidden = true
 			keyModifier.stringValue = ""
 			keyChar.stringValue = ""
 			return
 		}
-		keyModifier.stringValue = item?.keyEquivalentModifierMask.keyEquivalentStrings().joined() ?? ""
-		keyChar.stringValue = item?.keyEquivalent.uppercased() ?? ""
+		keyModifier.isHidden = false
+		keyChar.isHidden = true
+		keyChar.stringValue = ""
+		keyModifier.alignment = .right
+		keyModifier.stringValue = [
+			item?.keyEquivalentModifierMask.pockMenuShortcutModifierString ?? "",
+			item?.keyEquivalent.uppercased() ?? ""
+		].joined()
+		updateShortcutContainerWidth()
+	}
+
+	private func updateShortcutContainerWidth() {
+		let font = keyModifier.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize)
+		let width = ceil((keyModifier.stringValue as NSString).size(withAttributes: [.font: font]).width) + 6
+		let containerWidth = max(24, min(width, 76))
+		keyModifier.superview?.constraints.first(where: { constraint in
+			constraint.firstAttribute == .width && constraint.secondItem == nil
+		})?.constant = containerWidth
+		invalidateIntrinsicContentSize()
+	}
+}
+
+extension NSEvent.ModifierFlags {
+	var pockMenuShortcutModifierString: String {
+		return keyEquivalentStrings().joined()
 	}
 }

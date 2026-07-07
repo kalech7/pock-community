@@ -5,6 +5,7 @@
 //  Created by Pierluigi Galdi on 10/03/21.
 //
 
+import AppKit
 import Foundation
 import PockKit
 
@@ -15,14 +16,26 @@ extension NSTouchBar.CustomizationIdentifier {
 
 /// Pock (main Touch Bar controller)
 internal class PockTouchBarController: PKTouchBarMouseController {
+	internal static let nativeTouchBarToggleIdentifier = NSTouchBarItem.Identifier("io.github.pock.native-touchbar-toggle")
 
 	/// Data
 	private(set) var widgets: [NSTouchBarItem.Identifier: PKWidgetInfo] = [:]
 	private(set) var cachedItems: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
 	private var cachedMouseDelegates: [PKScreenEdgeMouseDelegate] = []
+	private var mouseMoveThrottler = MouseMoveThrottler(maximumFrequency: 30, locationTolerance: 0.75)
 	
 	private var currentItems: [NSTouchBarItem.Identifier] {
 		return touchBar?.itemIdentifiers ?? []
+	}
+	private var nativeTouchBarToggleEnabled: Bool {
+		return Preferences[.nativeTouchBarToggleEnabled] as Bool
+	}
+	private var defaultItemIdentifiers: [NSTouchBarItem.Identifier] {
+		var identifiers = Array(widgets.keys)
+		if nativeTouchBarToggleEnabled {
+			identifiers.append(Self.nativeTouchBarToggleIdentifier)
+		}
+		return identifiers
 	}
 	private var emptyTouchBarController: EmptyTouchBarController?
 	private var presentationConfiguration: (placement: Int64, mode: PresentationMode) {
@@ -35,7 +48,12 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	}
 	
 	internal var allowedCustomizationIdentifiers: [NSTouchBarItem.Identifier] {
-		return Array(widgets.keys) + [.flexibleSpace]
+		var identifiers = Array(widgets.keys)
+		if nativeTouchBarToggleEnabled {
+			identifiers.append(Self.nativeTouchBarToggleIdentifier)
+		}
+		identifiers.append(.flexibleSpace)
+		return identifiers
 	}
 
 	internal var preferredItemIdentifiers: [NSTouchBarItem.Identifier] {
@@ -44,9 +62,15 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		let allowedIdentifiers = Set(allowedCustomizationIdentifiers)
 		let savedVisibleIdentifiers = savedIdentifiers.filter({ allowedIdentifiers.contains($0) })
 		guard savedVisibleIdentifiers.isEmpty == false else {
-			return Array(widgets.keys)
+			return defaultItemIdentifiers
 		}
-		return savedVisibleIdentifiers
+		guard nativeTouchBarToggleEnabled else {
+			return savedVisibleIdentifiers
+		}
+		guard savedVisibleIdentifiers.contains(Self.nativeTouchBarToggleIdentifier) == false else {
+			return savedVisibleIdentifiers
+		}
+		return savedVisibleIdentifiers + [Self.nativeTouchBarToggleIdentifier]
 	}
 	
 	// MARK: Mouse Support
@@ -149,6 +173,15 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			Roger.info("[\(identifier.rawValue)][item] - cached")
 			return item
 		}
+		if identifier == Self.nativeTouchBarToggleIdentifier {
+			guard nativeTouchBarToggleEnabled else {
+				return nil
+			}
+			Roger.info("[\(identifier.rawValue)][item] - initializes")
+			let item = makeNativeTouchBarToggleItem()
+			cachedItems[identifier] = item
+			return item
+		}
 		guard let widget = widgets[identifier] else {
 			Roger.error("Can't find `NSTouchBarItem` for given identifier: `\(identifier)`")
 			return nil
@@ -159,6 +192,19 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		if let delegate = item?.widget as? PKScreenEdgeMouseDelegate {
 			cachedMouseDelegates.append(delegate)
 		}
+		return item
+	}
+
+	internal func makeNativeTouchBarToggleItem() -> NSTouchBarItem {
+		let item = NSCustomTouchBarItem(identifier: Self.nativeTouchBarToggleIdentifier)
+		item.view = TouchBarSwapHandleView(
+			width: 22,
+			direction: .toNative,
+			orientation: .vertical,
+			target: AppController.shared,
+			action: #selector(AppController.showNativeTouchBarFromHandle)
+		)
+		item.customizationLabel = "Native Touch Bar"
 		return item
 	}
 	
@@ -201,6 +247,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	}
 	
 	override func screenEdgeController(_ controller: PKScreenEdgeController, mouseEnteredAtLocation location: NSPoint, in view: NSView) {
+		mouseMoveThrottler.reset()
 		super.screenEdgeController(controller, mouseEnteredAtLocation: location, in: view)
 		mouseDelegates.forEach({
 			$0.screenEdgeController(controller, mouseEnteredAtLocation: location, in: view)
@@ -208,6 +255,9 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	}
 	
 	override func screenEdgeController(_ controller: PKScreenEdgeController, mouseMovedAtLocation location: NSPoint, in view: NSView) {
+		guard mouseMoveThrottler.shouldForward(location) else {
+			return
+		}
 		super.screenEdgeController(controller, mouseMovedAtLocation: location, in: view)
 		mouseDelegates.forEach({
 			$0.screenEdgeController(controller, mouseMovedAtLocation: location, in: view)
@@ -229,6 +279,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	}
 	
 	override func screenEdgeController(_ controller: PKScreenEdgeController, mouseExitedAtLocation location: NSPoint, in view: NSView) {
+		mouseMoveThrottler.reset()
 		super.screenEdgeController(controller, mouseExitedAtLocation: location, in: view)
 		mouseDelegates.forEach({
 			$0.screenEdgeController(controller, mouseExitedAtLocation: location, in: view)
@@ -282,4 +333,214 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		})
 	}
 
+}
+
+internal final class TouchBarSwapHandleView: NSButton {
+	internal enum Direction {
+		case toNative
+		case toPock
+	}
+	internal enum Orientation {
+		case horizontal
+		case vertical
+	}
+
+	private let direction: Direction
+	private let orientation: Orientation
+	private let preferredWidth: CGFloat
+	private var isCompact: Bool {
+		return orientation == .horizontal && preferredWidth <= 24
+	}
+
+	override var intrinsicContentSize: NSSize {
+		return NSSize(width: preferredWidth, height: 30)
+	}
+
+	internal init(
+		width: CGFloat,
+		direction: Direction,
+		orientation: Orientation = .horizontal,
+		target: AnyObject?,
+		action: Selector?
+	) {
+		self.preferredWidth = width
+		self.direction = direction
+		self.orientation = orientation
+		super.init(frame: NSRect(x: 0, y: 0, width: width, height: 30))
+		self.target = target
+		self.action = action
+		setup()
+		addDirectTouchGesture(target: target, action: action)
+	}
+
+	required init?(coder: NSCoder) {
+		self.preferredWidth = 34
+		self.direction = .toNative
+		self.orientation = .horizontal
+		super.init(coder: coder)
+		setup()
+	}
+
+	private func setup() {
+		title = ""
+		isBordered = false
+		bezelStyle = .regularSquare
+		setButtonType(.momentaryChange)
+		focusRingType = .none
+		wantsLayer = true
+		layer?.backgroundColor = NSColor.clear.cgColor
+		toolTip = direction == .toNative ? "Show native Touch Bar" : "Show Pock"
+		setAccessibilityLabel(toolTip)
+	}
+
+	private func addDirectTouchGesture(target: AnyObject?, action: Selector?) {
+		guard let action = action else {
+			return
+		}
+		let clickGesture = NSClickGestureRecognizer(target: target, action: action)
+		clickGesture.allowedTouchTypes = .direct
+		addGestureRecognizer(clickGesture)
+	}
+
+	override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+		return true
+	}
+
+	override func highlight(_ flag: Bool) {
+		super.highlight(flag)
+		needsDisplay = true
+	}
+
+	override func draw(_ dirtyRect: NSRect) {
+		if orientation == .vertical {
+			drawVerticalHandle()
+			return
+		}
+		drawHorizontalHandle()
+	}
+
+	private func drawHorizontalHandle() {
+		let capsule = bounds.insetBy(dx: isCompact ? 2 : 3, dy: isCompact ? 8 : 7)
+		let isPressed = cell?.isHighlighted == true
+		let capsulePath = NSBezierPath(roundedRect: capsule, xRadius: capsule.height / 2, yRadius: capsule.height / 2)
+		NSColor.white.withAlphaComponent(isPressed ? 0.2 : 0.12).setFill()
+		capsulePath.fill()
+		NSColor.white.withAlphaComponent(isPressed ? 0.34 : 0.24).setStroke()
+		capsulePath.lineWidth = 0.75
+		capsulePath.stroke()
+
+		guard isCompact == false else {
+			drawHorizontalChevron(in: capsule, isPressed: isPressed)
+			return
+		}
+		drawDot(in: capsule, isPressed: isPressed)
+		drawHorizontalChevron(in: capsule, isPressed: isPressed)
+	}
+
+	private func drawVerticalHandle() {
+		let capsule = bounds.insetBy(dx: 5, dy: 3)
+		let isPressed = cell?.isHighlighted == true
+		let capsulePath = NSBezierPath(roundedRect: capsule, xRadius: capsule.width / 2, yRadius: capsule.width / 2)
+		NSColor.white.withAlphaComponent(isPressed ? 0.2 : 0.12).setFill()
+		capsulePath.fill()
+		NSColor.white.withAlphaComponent(isPressed ? 0.34 : 0.24).setStroke()
+		capsulePath.lineWidth = 0.75
+		capsulePath.stroke()
+
+		drawVerticalDot(in: capsule, isPressed: isPressed)
+		drawVerticalChevron(in: capsule, isPressed: isPressed)
+	}
+
+	private func drawDot(in capsule: NSRect, isPressed: Bool) {
+		let diameter: CGFloat = isPressed ? 7 : 6
+		let centerX = direction == .toNative ? capsule.minX + 7 : capsule.maxX - 7
+		let dot = NSRect(
+			x: centerX - diameter / 2,
+			y: capsule.midY - diameter / 2,
+			width: diameter,
+			height: diameter
+		)
+		NSColor.controlAccentColor.withAlphaComponent(isPressed ? 0.95 : 0.8).setFill()
+		NSBezierPath(ovalIn: dot).fill()
+	}
+
+	private func drawVerticalDot(in capsule: NSRect, isPressed: Bool) {
+		let diameter: CGFloat = isPressed ? 6 : 5
+		let centerY = direction == .toNative ? capsule.maxY - 7 : capsule.minY + 7
+		let dot = NSRect(
+			x: capsule.midX - diameter / 2,
+			y: centerY - diameter / 2,
+			width: diameter,
+			height: diameter
+		)
+		NSColor.controlAccentColor.withAlphaComponent(isPressed ? 0.95 : 0.8).setFill()
+		NSBezierPath(ovalIn: dot).fill()
+	}
+
+	private func drawHorizontalChevron(in capsule: NSRect, isPressed: Bool) {
+		let centerX = direction == .toNative ? capsule.maxX - 7 : capsule.minX + 7
+		let centerY = capsule.midY
+		let directionMultiplier: CGFloat = direction == .toNative ? 1 : -1
+		let path = NSBezierPath()
+		path.move(to: NSPoint(x: centerX - 2 * directionMultiplier, y: centerY + 3))
+		path.line(to: NSPoint(x: centerX + 2 * directionMultiplier, y: centerY))
+		path.line(to: NSPoint(x: centerX - 2 * directionMultiplier, y: centerY - 3))
+		path.lineCapStyle = .round
+		path.lineJoinStyle = .round
+		path.lineWidth = 1.2
+		NSColor.white.withAlphaComponent(isPressed ? 0.72 : 0.56).setStroke()
+		path.stroke()
+	}
+
+	private func drawVerticalChevron(in capsule: NSRect, isPressed: Bool) {
+		let centerX = capsule.midX
+		let centerY = direction == .toNative ? capsule.minY + 7 : capsule.maxY - 7
+		let directionMultiplier: CGFloat = direction == .toNative ? -1 : 1
+		let path = NSBezierPath()
+		path.move(to: NSPoint(x: centerX - 3, y: centerY - 2 * directionMultiplier))
+		path.line(to: NSPoint(x: centerX, y: centerY + 2 * directionMultiplier))
+		path.line(to: NSPoint(x: centerX + 3, y: centerY - 2 * directionMultiplier))
+		path.lineCapStyle = .round
+		path.lineJoinStyle = .round
+		path.lineWidth = 1.2
+		NSColor.white.withAlphaComponent(isPressed ? 0.72 : 0.56).setStroke()
+		path.stroke()
+	}
+}
+
+private struct MouseMoveThrottler {
+	private let minimumInterval: TimeInterval
+	private let locationTolerance: CGFloat
+	private var lastForwardedTime: TimeInterval = 0
+	private var lastForwardedLocation: NSPoint?
+
+	init(maximumFrequency: Double, locationTolerance: CGFloat) {
+		self.minimumInterval = 1.0 / max(maximumFrequency, 1)
+		self.locationTolerance = locationTolerance
+	}
+
+	mutating func reset() {
+		lastForwardedTime = 0
+		lastForwardedLocation = nil
+	}
+
+	mutating func shouldForward(_ location: NSPoint) -> Bool {
+		let now = ProcessInfo.processInfo.systemUptime
+		if let lastLocation = lastForwardedLocation {
+			guard hasMovedEnough(from: lastLocation, to: location) else {
+				return false
+			}
+			guard now - lastForwardedTime >= minimumInterval else {
+				return false
+			}
+		}
+		lastForwardedTime = now
+		lastForwardedLocation = location
+		return true
+	}
+
+	private func hasMovedEnough(from lastLocation: NSPoint, to location: NSPoint) -> Bool {
+		return abs(location.x - lastLocation.x) >= locationTolerance
+			|| abs(location.y - lastLocation.y) >= locationTolerance
+	}
 }

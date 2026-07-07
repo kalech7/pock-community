@@ -47,13 +47,13 @@ internal class NSMenuBadgeItem: NSMenuItem {
 
 	override var keyEquivalentModifierMask: NSEvent.ModifierFlags {
 		didSet {
-			_view?.keyModifier.stringValue = keyEquivalentModifierMask.keyEquivalentStrings().joined()
+			_view?.updateShortcutLabels()
 		}
 	}
 
 	override var keyEquivalent: String {
 		didSet {
-			_view?.keyChar.stringValue = keyEquivalent.uppercased()
+			_view?.updateShortcutLabels()
 		}
 	}
 

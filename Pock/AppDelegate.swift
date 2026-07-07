@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 	
 	private var preferencesMenuItem: NSMenuBadgeItem!
 	private var manageWidgetsMenuItem: NSMenuBadgeItem!
+	private var nativeTouchBarToggleMenuItem: NSMenuItem!
 	private weak var mainBarUpdateBadge: NSView?
 
 	func applicationDidFinishLaunching(_ aNotification: Notification) {
@@ -64,6 +65,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 			configureMainBarButton(button)
 			/// Create menu
 			setupMainBarMenuItems()
+			mainBarMenu.delegate = self
 			mainBarItem.menu = mainBarMenu
 		}
 	}
@@ -176,6 +178,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 			keyEquivalent: ","
 		)
 		mainBarMenu.addItem(preferencesMenuItem)
+		let showPockMenuItem = NSMenuItemCustomView.new(
+			title: "menu.show-pock".localized,
+			target: self,
+			selector: #selector(showPockTouchBar),
+			keyEquivalent: "p"
+		)
+		showPockMenuItem.keyEquivalentModifierMask = [.control, .option, .command]
+		mainBarMenu.addItem(showPockMenuItem)
+		nativeTouchBarToggleMenuItem = NSMenuItem(
+			title: "menu.native-touchbar-switch".localized,
+			action: #selector(toggleNativeTouchBarSwitch),
+			keyEquivalent: ""
+		)
+		nativeTouchBarToggleMenuItem.target = self
+		mainBarMenu.addItem(nativeTouchBarToggleMenuItem)
+		updateNativeTouchBarToggleMenuItem()
 		
 		// MARK: Widgets
 		mainBarMenu.addItem(NSMenuHeader.new(title: "menu.widgets".localized))
@@ -294,6 +312,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 	@objc private func openPreferences() {
 		AppController.shared.openController(PreferencesViewController())
 	}
+
+	@objc private func showPockTouchBar() {
+		AppController.shared.showPockTouchBar()
+	}
+
+	@objc private func toggleNativeTouchBarSwitch() {
+		let isEnabled = Preferences[.nativeTouchBarToggleEnabled] as Bool
+		Preferences[.nativeTouchBarToggleEnabled] = !isEnabled
+		updateNativeTouchBarToggleMenuItem()
+		AppController.shared.refreshNativeTouchBarSwitch()
+		guard AppController.shared.isVisible else {
+			return
+		}
+		AppController.shared.reload(shouldFetchLatestVersions: false)
+	}
+
+	private func updateNativeTouchBarToggleMenuItem() {
+		nativeTouchBarToggleMenuItem?.state = (Preferences[.nativeTouchBarToggleEnabled] as Bool) ? .on : .off
+	}
 	
 	// MARK: Open widgets manager
 	@objc private func openWidgetsManager() {
@@ -371,3 +408,9 @@ private extension AppDelegate {
 	}
 }
 #endif
+
+extension AppDelegate: NSMenuDelegate {
+	func menuWillOpen(_ menu: NSMenu) {
+		updateNativeTouchBarToggleMenuItem()
+	}
+}

@@ -31,15 +31,18 @@ internal class AppController: NSResponder {
 	/// Singleton
 	static let shared = AppController()
 
-	/// Double `ctrl` hotkey
-	private var doubleCtrlHotKey: HotKey?
+	/// Pock/System Touch Bar hotkey
+	private var pockToggleHotKey: HotKey?
 	
 	/// Once (upon) a day timer
 	private var onceADayTimer: Timer?
 	private var pendingTouchBarReload: DispatchWorkItem?
-	private var pendingTouchBarRestoreWorkItems: [DispatchWorkItem] = []
-	private var touchBarRestoreGeneration = 0
+	private let touchBarRestoreScheduler = TouchBarRestoreScheduler()
+	private let legacyNativeSwipeSensorItemIdentifier = NSTouchBarItem.Identifier("io.github.pock.native-swipe-sensor")
+	private let nativeReturnHandleItemIdentifier = NSTouchBarItem.Identifier("io.github.pock.native-touchbar-return")
 	private var shouldRestoreTouchBarAfterUnlock = false
+	private var isShowingNativeTouchBar = false
+	private var lastTouchBarSwapTime: TimeInterval = 0
 	
 	/// Current window controller
 	private var windowController: NSWindowController?
@@ -59,10 +62,13 @@ internal class AppController: NSResponder {
 			Preferences[.userDefinedPresentationMode] = TouchBarHelper.currentPresentationMode.rawValue
 		}
 		TouchBarHelper.swizzleFunctions()
+		removeLegacyNativeSwipeSensorItem()
+		setNativeReturnHandleVisible(false)
 		registerForInternalNotifications()
-		registerDoubleControlHotKey()
+		registerPockToggleHotKey()
 		prepareOnceADayTimer()
 		clearTemporaryWidgetsFolder()
+		repairInstalledWidgets()
         startListeningForScreenLockNotifications()
         startListeningForApplicationActivationNotifications()
         // Show fake badge for testing
@@ -104,28 +110,19 @@ internal class AppController: NSResponder {
     }
 
     private func scheduleTouchBarRestore() {
-        pendingTouchBarRestoreWorkItems.forEach({ $0.cancel() })
-        pendingTouchBarRestoreWorkItems.removeAll()
         guard isLocked == false, pockTouchBarController?.isVisible == true else {
+            touchBarRestoreScheduler.cancel()
             return
         }
-        touchBarRestoreGeneration += 1
-        let generation = touchBarRestoreGeneration
-        [0.05, 0.25, 0.6].forEach { delay in
-            let workItem = DispatchWorkItem { [weak self] in
-                guard let self = self,
-                      self.touchBarRestoreGeneration == generation,
-                      self.isLocked == false,
-                      self.pockTouchBarController?.isVisible == true else {
-                    return
-                }
-                self.pockTouchBarController.restorePresentation()
-                if delay == 0.6 {
-                    self.pendingTouchBarRestoreWorkItems.removeAll()
-                }
+        touchBarRestoreScheduler.schedule(after: 0.2) { [weak self] in
+            guard let self = self else {
+                return
             }
-            pendingTouchBarRestoreWorkItems.append(workItem)
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+            guard self.isLocked == false,
+                  self.pockTouchBarController?.isVisible == true else {
+                return
+            }
+            self.pockTouchBarController.restorePresentation()
         }
     }
 
@@ -137,6 +134,8 @@ internal class AppController: NSResponder {
                 return
             }
             Roger.debug("Screen is locked. Tearing down PockTouchBarController...")
+            self.touchBarRestoreScheduler.cancel()
+            self.setNativeReturnHandleVisible(false)
             self.shouldRestoreTouchBarAfterUnlock = self.pockTouchBarController?.isVisible == true
             self.isLocked = true
             if self.shouldRestoreTouchBarAfterUnlock {
@@ -158,6 +157,7 @@ internal class AppController: NSResponder {
                 self.prepareTouchBar()
             } else if self.pockTouchBarController?.isVisible == false {
                 Roger.debug("Screen is unlocked. PockTouchBarController remains hidden.")
+                self.refreshNativeTouchBarSwitch()
             } else {
                 Roger.debug("Screen is unlocked. PockTouchBarController is already visible...")
             }
@@ -167,6 +167,10 @@ internal class AppController: NSResponder {
 	/// Clear tmp widgets folder
 	private func clearTemporaryWidgetsFolder() {
 		WidgetsInstaller().clearTemporaryWidgetsFolder()
+	}
+
+	private func repairInstalledWidgets() {
+		WidgetsInstaller().repairInstalledWidgets()
 	}
 	
 	/// Fetch latest versions
@@ -191,12 +195,28 @@ internal class AppController: NSResponder {
 	
 	/// Setup
 	internal func prepareTouchBar() {
+		isShowingNativeTouchBar = false
+		setNativeReturnHandleVisible(false)
 		pockTouchBarController = PockTouchBarController.load()
 		navigationController = PKTouchBarNavigationController(rootController: pockTouchBarController)
 	}
 
+	private func removeLegacyNativeSwipeSensorItem() {
+		DFRElementSetControlStripPresenceForIdentifier(legacyNativeSwipeSensorItemIdentifier, false)
+	}
+
+	private func setNativeReturnHandleVisible(_ visible: Bool) {
+		DFRElementSetControlStripPresenceForIdentifier(nativeReturnHandleItemIdentifier, visible)
+	}
+
+	internal func refreshNativeTouchBarSwitch() {
+		setNativeReturnHandleVisible(false)
+	}
+
 	/// Dismiss
 	internal func tearDownTouchBar() {
+		touchBarRestoreScheduler.cancel()
+		setNativeReturnHandleVisible(false)
 		navigationController?.dismiss()
 		pockTouchBarController = nil
 		navigationController = nil
@@ -255,21 +275,72 @@ internal class AppController: NSResponder {
 
 	/// Toggle
 	@objc internal func toggleVisibility() {
+		guard acceptTouchBarSwapRequest() else {
+			return
+		}
 		if pockTouchBarController == nil {
 			prepareTouchBar()
 		} else {
 			if navigationController.visibleController?.isVisible == true {
-				if NSFunctionRow.activeFunctionRows().count > 1 {
-					TouchBarHelper.markTouchBarAsDimmed(true)
-				} else {
-					reload(shouldFetchLatestVersions: false)
-				}
+				showNativeTouchBar()
 			} else {
+				setNativeReturnHandleVisible(false)
 				TouchBarHelper.markTouchBarAsDimmed(false)
 			}
 		}
 	}
-	
+
+	@objc internal func showNativeTouchBarFromHandle() {
+		guard isLocked == false, acceptTouchBarSwapRequest() else {
+			return
+		}
+		if isVisible {
+			NSLog("[TouchBarSwap]: Handle tapped; showing native Touch Bar.")
+			showNativeTouchBar()
+		}
+	}
+
+	@objc internal func showPockFromNativeHandle() {
+		guard isLocked == false, acceptTouchBarSwapRequest() else {
+			return
+		}
+		NSLog("[TouchBarSwap]: Native handle tapped; showing Pock.")
+		showPockTouchBar()
+	}
+
+	@objc internal func showPockTouchBar() {
+		guard isLocked == false else {
+			return
+		}
+		isShowingNativeTouchBar = false
+		setNativeReturnHandleVisible(false)
+		guard isVisible == false else {
+			pockTouchBarController.restorePresentation()
+			return
+		}
+		prepareTouchBar()
+	}
+
+	internal func showNativeTouchBar() {
+		guard isLocked == false, isShowingNativeTouchBar == false else {
+			return
+		}
+		touchBarRestoreScheduler.cancel()
+		removeLegacyNativeSwipeSensorItem()
+		tearDownTouchBar()
+		isShowingNativeTouchBar = true
+		setNativeReturnHandleVisible(false)
+	}
+
+	private func acceptTouchBarSwapRequest() -> Bool {
+		let now = ProcessInfo.processInfo.systemUptime
+		guard now - lastTouchBarSwapTime > 0.35 else {
+			return false
+		}
+		lastTouchBarSwapTime = now
+		return true
+	}
+
 	/// Blank Touch Bar
 	internal func showEmptyTouchBarController(with state: EmptyTouchBarController.State) -> EmptyTouchBarController {
 		let controller: EmptyTouchBarController = EmptyTouchBarController.load()
@@ -284,9 +355,14 @@ internal class AppController: NSResponder {
 		NotificationCenter.default.addObserver(self, selector: #selector(prepareOnceADayTimer), name: .shouldEnableAutomaticUpdates, object: nil)
 	}
 
-	/// Register double `ctrl` hotkey
-	private func registerDoubleControlHotKey() {
-		doubleCtrlHotKey = HotKey(key: .control, double: true, target: self, selector: #selector(toggleVisibility))
+	/// Register Pock/System Touch Bar hotkey
+	private func registerPockToggleHotKey() {
+		pockToggleHotKey = HotKey(
+			keyEquivalent: "p",
+			modifiers: [.control, .option, .command],
+			target: self,
+			selector: #selector(toggleVisibility)
+		)
 	}
 	
 	// MARK: Show messages panel to inform users about certain situations
@@ -360,6 +436,39 @@ extension AppController: NSWindowDelegate {
 	}
 }
 
+private final class TouchBarRestoreScheduler {
+	private var pendingWorkItem: DispatchWorkItem?
+	private var requestID = 0
+
+	func schedule(after delay: TimeInterval, action: @escaping () -> Void) {
+		cancel()
+		requestID += 1
+		let currentRequestID = requestID
+		let workItem = DispatchWorkItem { [weak self] in
+			guard let self = self else {
+				return
+			}
+			defer {
+				if self.requestID == currentRequestID {
+					self.pendingWorkItem = nil
+				}
+			}
+			guard self.requestID == currentRequestID else {
+				return
+			}
+			action()
+		}
+		pendingWorkItem = workItem
+		DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+	}
+
+	func cancel() {
+		pendingWorkItem?.cancel()
+		pendingWorkItem = nil
+		requestID += 1
+	}
+}
+
 // MARK: Customization menu
 extension AppController: NSTouchBarDelegate {
 	
@@ -399,6 +508,9 @@ extension AppController: NSTouchBarDelegate {
 	}
 	
 	func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
+		if identifier == PockTouchBarController.nativeTouchBarToggleIdentifier {
+			return pockTouchBarController.makeNativeTouchBarToggleItem()
+		}
 		let item = pockTouchBarController.touchBar?.item(forIdentifier: identifier)
 			?? pockTouchBarController.widgets[identifier].flatMap({ PKWidgetTouchBarItem(widget: $0) })
 		guard let item = item else {
@@ -512,6 +624,7 @@ extension AppController {
 			return
 		}
 		let timer = Timer(fireAt: onceADayDate, interval: onceADayTimeInterval, target: self, selector: #selector(checkForUpdates), userInfo: nil, repeats: true)
+		timer.tolerance = 300
 		RunLoop.current.add(timer, forMode: .common)
 		onceADayTimer = timer
 		Roger.debug("[ONCE_A_DAY_TIMER]: Created new timer! First fire date will be: { \(onceADayDate) }")

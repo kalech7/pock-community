@@ -20,6 +20,8 @@
 "menu.general" = "Generale";
 "menu.about" = "Riguardo Pock";
 "menu.preferences" = "Preferenze…";
+"menu.show-pock" = "Mostra Pock";
+"menu.native-touchbar-switch" = "Mostra interruttore nativo";
 // Widgets
 "menu.widgets" = "Widgets";
 "menu.widgets.manage-widgets" = "Gestisci widget…";
@@ -65,7 +67,7 @@
 "preferences.layout.title" = "Layout";
 
 "preferences.double-control.title" = "Passa alla Touch Bar predefinita";
-"preferences.double-control.desc" = "Premi due volte il tasto `^Control` per passare da Pock alla Touch Bar di sistema e viceversa.";
+"preferences.double-control.desc" = "Premi `Control + Option + Command + P` per passare da Pock alla Touch Bar di sistema e viceversa.";
 "preferences.default-touchbar.shows" = "La Touch Bar predefinita mostra:";
 "preferences.default-touchbar.desc" = "Per funzionare correttamente, Pock potrebbe sovrascrivere le impostazioni predefinite della Touch Bar. Puoi sempre configurare le impostazioni predefinite da ‘Preferenze di Sistema > Tastiera’ per adattare la Touch Bar alle tue esigenze.";
 

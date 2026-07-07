@@ -43,8 +43,9 @@ internal struct Preferences {
 		case userDefinedPresentationMode
 		case didShowOnBoard
 		case didCompleteSetupOnBoard
-        case showDebugConsoleOnLaunch
+		case showDebugConsoleOnLaunch
 		case pockTouchBarItemIdentifiers
+		case nativeTouchBarToggleEnabled
 	}
 	static subscript<T>(_ key: Keys) -> T {
         get {
@@ -67,7 +68,7 @@ internal struct Preferences {
                 case .layoutStyle:
                     return LayoutStyle.withControlStrip as! T
                 case .mouseSupportEnabled:
-                    return true as! T
+                    return false as! T
                 case .showTrackingArea:
                     return false as! T
                 case .checkForUpdatesOnceADay:
@@ -82,6 +83,8 @@ internal struct Preferences {
                     return false as! T
 				case .pockTouchBarItemIdentifiers:
 					return [] as! T
+				case .nativeTouchBarToggleEnabled:
+					return true as! T
                 }
             }
             return value

@@ -20,6 +20,8 @@
 "menu.general" = "Geral";
 "menu.about" = "Sobre Pock";
 "menu.preferences" = "Preferências…";
+"menu.show-pock" = "Mostrar Pock";
+"menu.native-touchbar-switch" = "Mostrar alternador nativo";
 // Widgets
 "menu.widgets" = "Widgets";
 "menu.widgets.manage-widgets" = "Gerir widgets…";
@@ -65,7 +67,7 @@
 "preferences.layout.title" = "Layout";
 
 "preferences.double-control.title" = "Mudar para a Touch Bar predefinida";
-"preferences.double-control.desc" = "Pressione duas vezes `^Control` para alternar entre o Pock e a Touch Bar de sistema.";
+"preferences.double-control.desc" = "Pressione `Control + Option + Command + P` para alternar entre o Pock e a Touch Bar de sistema.";
 "preferences.default-touchbar.shows" = "A Touch Bar predefinida mostra:";
 "preferences.default-touchbar.desc" = "Para funcionar corretamente, Pock pode sobrescrever as configurações predefinidas da Touch Bar. Pode sempre alterar as configurações predefinidas a partir de \"Preferências de Sistema > Teclado\" para adaptar a Touch Bar às suas necessidades.";
 

@@ -92,7 +92,9 @@ public class TouchBarHelper {
 		let currentMode = currentPresentationMode
 		CFPreferencesSetAppValue(kPresentationModeGlobal, mode.rawValue as CFString, kTouchBarAgentIdentifier)
 		let result = CFPreferencesAppSynchronize(kTouchBarAgentIdentifier)
-		reloadTouchBarAgent()
+		if result {
+			reloadTouchBarAgent()
+		}
 		Roger.debug("Touch Bar Presentation mode changed: [\(result ? "success" : "error")] \(currentMode) -> \(mode)")
 		return result
 	}

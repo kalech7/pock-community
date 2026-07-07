@@ -265,6 +265,14 @@ internal final class WidgetsInstaller: NSDocument {
 		}
 	}
 
+	internal func repairInstalledWidgets() {
+		do {
+			try repairFrameworkSymlinks(in: kWidgetsPathURL)
+		} catch {
+			Roger.error(error)
+		}
+	}
+
 	private func repairFrameworkSymlinks(in widgetLocation: URL) throws {
 		guard let enumerator = manager.enumerator(
 			at: widgetLocation,
@@ -307,6 +315,9 @@ internal final class WidgetsInstaller: NSDocument {
 	// MARK: Clear temporary widgets folder
 	
 	internal func clearTemporaryWidgetsFolder() {
+		guard FileManager.default.fileExists(atPath: kWidgetsTempPathURL.path) else {
+			return
+		}
 		do {
 			try FileManager.default.removeItem(at: kWidgetsTempPathURL)
 		} catch {

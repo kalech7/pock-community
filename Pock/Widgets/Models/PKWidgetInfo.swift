@@ -28,7 +28,10 @@ public struct PKWidgetInfo: Equatable {
 	// MARK: Data
 	let path: URL
 	let bundleIdentifier: String
-	let principalClass: AnyClass?
+	let principalClassName: String?
+	var principalClass: AnyClass? {
+		return loadClass(named: principalClassName)
+	}
 	let name: String
 	let author: String
 	let version: String
@@ -43,9 +46,12 @@ public struct PKWidgetInfo: Equatable {
 	}
 	
 	// MARK: Preferences
-	let preferencesClass: AnyClass?
+	let preferencesClassName: String?
+	var preferencesClass: AnyClass? {
+		return loadClass(named: preferencesClassName)
+	}
 	var hasPreferences: Bool {
-		return preferencesClass != nil
+		return preferencesClassName != nil
 	}
 	
 	// MARK: Load
@@ -54,7 +60,7 @@ public struct PKWidgetInfo: Equatable {
 	public init(path: URL) throws {
 		guard let bundle = Bundle(path: path.path),
 			  let bundleIdentifier: String = bundle[.bundleIdentifier],
-			  let principalClass = bundle.principalClass,
+			  let principalClassName: String = bundle[.principalClass],
               let name: String = bundle[.bundleDisplayName] ?? bundle[.bundleName],
 			  let author: String = bundle[.widgetAuthor],
 			  let version: String = bundle[.bundleVersion] else {
@@ -62,7 +68,7 @@ public struct PKWidgetInfo: Equatable {
 		}
 		self.path = path
 		self.bundleIdentifier = bundleIdentifier
-		self.principalClass = principalClass
+		self.principalClassName = principalClassName
 		self.name = name
 		self.author = author
 		self.version = version
@@ -71,12 +77,12 @@ public struct PKWidgetInfo: Equatable {
 		} else {
 			self.build = nil
 		}
-		self.loaded = bundle.isLoaded
+		self.loaded = true
 		/// Preferences
 		if let preferencesClassName: String = bundle[.widgetPreferenceClass] {
-			self.preferencesClass = NSClassFromString(preferencesClassName)
+			self.preferencesClassName = preferencesClassName
 		} else {
-			self.preferencesClass = nil
+			self.preferencesClassName = nil
 		}
 	}
     
@@ -87,7 +93,7 @@ public struct PKWidgetInfo: Equatable {
         }
         self.path = path
         self.bundleIdentifier = bundleIdentifier
-        self.principalClass = nil
+        self.principalClassName = nil
         self.name = infoDict[.bundleDisplayName] ?? infoDict[.bundleName] ?? "Unknown"
         self.author = infoDict[.widgetAuthor] ?? "Unknown"
         self.version = infoDict[.bundleVersion] ?? "--"
@@ -98,8 +104,23 @@ public struct PKWidgetInfo: Equatable {
         }
         self.loaded = false
         /// Preferences
-        self.preferencesClass = nil
+        self.preferencesClassName = nil
     }
+
+	private func loadClass(named className: String?) -> AnyClass? {
+		guard let className = className,
+			  let bundle = Bundle(path: path.path) else {
+			return nil
+		}
+		if bundle.isLoaded == false {
+			do {
+				try bundle.loadAndReturnError()
+			} catch {
+				return nil
+			}
+		}
+		return bundle.classNamed(className) ?? NSClassFromString(className)
+	}
 	
 }
 
