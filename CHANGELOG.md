@@ -9,6 +9,11 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-9 Community
+
+- Fixed the native Touch Bar toggle so switching away from Pock reloads Control Strip when macOS does not restore it automatically.
+- Routed direct Touch Bar handle taps through the button click path to keep native/Pock switching reliable.
+
 ## 0.10.1-8 Community
 
 - Hid the Touch Bar system modal close button when Pock is presented.

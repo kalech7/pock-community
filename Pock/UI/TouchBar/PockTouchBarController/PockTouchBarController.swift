@@ -370,7 +370,7 @@ internal final class TouchBarSwapHandleView: NSButton {
 		self.target = target
 		self.action = action
 		setup()
-		addDirectTouchGesture(target: target, action: action)
+		addDirectTouchGesture()
 	}
 
 	required init?(coder: NSCoder) {
@@ -393,13 +393,20 @@ internal final class TouchBarSwapHandleView: NSButton {
 		setAccessibilityLabel(toolTip)
 	}
 
-	private func addDirectTouchGesture(target: AnyObject?, action: Selector?) {
-		guard let action = action else {
+	private func addDirectTouchGesture() {
+		guard action != nil else {
 			return
 		}
-		let clickGesture = NSClickGestureRecognizer(target: target, action: action)
+		let clickGesture = NSClickGestureRecognizer(target: self, action: #selector(handleDirectTouchClick(_:)))
 		clickGesture.allowedTouchTypes = .direct
 		addGestureRecognizer(clickGesture)
+	}
+
+	@objc private func handleDirectTouchClick(_ recognizer: NSClickGestureRecognizer) {
+		guard recognizer.state == .ended else {
+			return
+		}
+		performClick(nil)
 	}
 
 	override func acceptsFirstMouse(for event: NSEvent?) -> Bool {

@@ -327,8 +327,12 @@ internal class AppController: NSResponder {
 		}
 		touchBarRestoreScheduler.cancel()
 		removeLegacyNativeSwipeSensorItem()
+		let shouldReloadNativeTouchBar = NSFunctionRow.activeFunctionRows().count <= 1
 		tearDownTouchBar()
 		isShowingNativeTouchBar = true
+		if shouldReloadNativeTouchBar {
+			TouchBarHelper.reloadTouchBarAgent()
+		}
 		setNativeReturnHandleVisible(false)
 	}
 

@@ -1,6 +1,6 @@
 # Build Status
 
-Last verified: 2026-06-30
+Last verified: 2026-07-07
 
 ## Summary
 
@@ -14,7 +14,7 @@ Pock Community builds successfully in the local development environment with ful
 - Dependency manager: CocoaPods.
 - Main project files: `Pock.xcodeproj`, `Pock.xcworkspace`, `Podfile`.
 - Deployment target: macOS 10.15.
-- App version: `0.10.1` build `8`.
+- App version: `0.10.1` build `9`.
 - App bundle identifier: `io.github.kalech7.pock-community`.
 
 ## Dependencies
@@ -45,8 +45,8 @@ open /Applications/Pock.app
 - `xcodebuild -list -workspace Pock.xcworkspace`: succeeded.
 - Release build with `CODE_SIGNING_ALLOWED=NO`: succeeded.
 - `./scripts/sign_app.sh`: succeeded with `Pock Local Code Signing`.
-- Installed `/Applications/Pock.app`: version `0.10.1` build `8`, signed with the same local certificate requirement as build `5`.
-- Local launch from `/Applications/Pock.app`: stayed running for 1 minute 33 seconds with no new crash reports and low sampled CPU.
+- Installed `/Applications/Pock.app`: version `0.10.1` build `9`, signed with the same local certificate requirement as build `5`.
+- Local launch from `/Applications/Pock.app`: started successfully after installation.
 - `./scripts/install_app.sh`: updated to sign installed builds; use it when replacing `/Applications/Pock.app` is intended.
 
 ## Known Warnings
