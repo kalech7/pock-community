@@ -58,7 +58,7 @@ class OnBoardViewController: NSViewController {
 		configureUIElements()
 		configureSetupSection()
 		enableLaunchAtLoginByDefault()
-		requestAccessibilityPermission()
+		requestAccessibilityPermissionIfNeeded()
 		animate()
     }
 	
@@ -125,6 +125,14 @@ class OnBoardViewController: NSViewController {
 		guard Preferences[.launchAtLogin] == false else { return }
 		Preferences[.launchAtLogin] = true
 		launchAtLoginCheckbox.state = .on
+	}
+
+	private func requestAccessibilityPermissionIfNeeded() {
+		guard !AXIsProcessTrusted() else {
+			updateAccessibilityStatus()
+			return
+		}
+		requestAccessibilityPermission()
 	}
 
 	private func requestAccessibilityPermission() {

@@ -9,6 +9,11 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-10 Community
+
+- Avoided prompting for Accessibility again when macOS already trusts Pock Community.
+- Kept the Accessibility prompt available from onboarding only when permission is still missing.
+
 ## 0.10.1-9 Community
 
 - Fixed the native Touch Bar toggle so switching away from Pock reloads Control Strip when macOS does not restore it automatically.
