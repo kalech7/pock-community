@@ -38,8 +38,8 @@ internal class AppController: NSResponder {
 	private var onceADayTimer: Timer?
 	private var pendingTouchBarReload: DispatchWorkItem?
 	private let touchBarRestoreScheduler = TouchBarRestoreScheduler()
-	private let legacyNativeSwipeSensorItemIdentifier = NSTouchBarItem.Identifier("io.github.pock.native-swipe-sensor")
 	private let nativeReturnHandleItemIdentifier = NSTouchBarItem.Identifier("io.github.pock.native-touchbar-return")
+	private var nativeReturnHandleItem: NSCustomTouchBarItem?
 	private var shouldRestoreTouchBarAfterUnlock = false
 	private var isShowingNativeTouchBar = false
 	private var lastTouchBarSwapTime: TimeInterval = 0
@@ -62,7 +62,7 @@ internal class AppController: NSResponder {
 			Preferences[.userDefinedPresentationMode] = TouchBarHelper.currentPresentationMode.rawValue
 		}
 		TouchBarHelper.swizzleFunctions()
-		removeLegacyNativeSwipeSensorItem()
+		installNativeReturnHandleItem()
 		setNativeReturnHandleVisible(false)
 		registerForInternalNotifications()
 		registerPockToggleHotKey()
@@ -122,6 +122,8 @@ internal class AppController: NSResponder {
                   self.pockTouchBarController?.isVisible == true else {
                 return
             }
+            self.isShowingNativeTouchBar = false
+            self.setNativeReturnHandleVisible(false)
             self.pockTouchBarController.restorePresentation()
         }
     }
@@ -201,16 +203,42 @@ internal class AppController: NSResponder {
 		navigationController = PKTouchBarNavigationController(rootController: pockTouchBarController)
 	}
 
-	private func removeLegacyNativeSwipeSensorItem() {
-		DFRElementSetControlStripPresenceForIdentifier(legacyNativeSwipeSensorItemIdentifier, false)
-	}
-
 	private func setNativeReturnHandleVisible(_ visible: Bool) {
 		DFRElementSetControlStripPresenceForIdentifier(nativeReturnHandleItemIdentifier, visible)
 	}
 
+	private var shouldShowNativeReturnHandle: Bool {
+		return isLocked == false
+			&& isShowingNativeTouchBar
+			&& (Preferences[.nativeTouchBarToggleEnabled] as Bool)
+	}
+
+	private func installNativeReturnHandleItem() {
+		guard nativeReturnHandleItem == nil else {
+			return
+		}
+		let item = NSCustomTouchBarItem(identifier: nativeReturnHandleItemIdentifier)
+		item.view = TouchBarSwapHandleView(
+			width: 34,
+			direction: .toPock,
+			target: self,
+			action: #selector(showPockFromNativeHandle)
+		)
+		item.customizationLabel = "Show Pock"
+		nativeReturnHandleItem = item
+		NSTouchBarItem.addSystemTrayItem(item)
+	}
+
 	internal func refreshNativeTouchBarSwitch() {
-		setNativeReturnHandleVisible(false)
+		setNativeReturnHandleVisible(shouldShowNativeReturnHandle)
+	}
+
+	private func refreshNativeTouchBarSwitchRepeatedly() {
+		[0.0, 0.15, 0.5, 1.0].forEach { delay in
+			async(after: delay) { [weak self] in
+				self?.refreshNativeTouchBarSwitch()
+			}
+		}
 	}
 
 	/// Dismiss
@@ -322,18 +350,23 @@ internal class AppController: NSResponder {
 	}
 
 	internal func showNativeTouchBar() {
-		guard isLocked == false, isShowingNativeTouchBar == false else {
+		guard isLocked == false else {
+			return
+		}
+		guard isShowingNativeTouchBar == false || isVisible else {
 			return
 		}
 		touchBarRestoreScheduler.cancel()
-		removeLegacyNativeSwipeSensorItem()
 		let shouldReloadNativeTouchBar = NSFunctionRow.activeFunctionRows().count <= 1
 		tearDownTouchBar()
 		isShowingNativeTouchBar = true
-		if shouldReloadNativeTouchBar {
+		let didRestorePresentationMode = TouchBarHelper.setPresentationMode(
+			to: Preferences[.userDefinedPresentationMode] as PresentationMode
+		)
+		if shouldReloadNativeTouchBar && didRestorePresentationMode == false {
 			TouchBarHelper.reloadTouchBarAgent()
 		}
-		setNativeReturnHandleVisible(false)
+		refreshNativeTouchBarSwitchRepeatedly()
 	}
 
 	private func acceptTouchBarSwapRequest() -> Bool {
