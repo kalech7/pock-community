@@ -38,6 +38,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		return identifiers
 	}
 	private var emptyTouchBarController: EmptyTouchBarController?
+	private var blankTouchBarCheckGeneration = 0
 	private var presentationConfiguration: (placement: Int64, mode: PresentationMode) {
 		switch Preferences[.layoutStyle] as LayoutStyle {
 		case .withControlStrip:
@@ -127,13 +128,45 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		TouchBarHelper.setPresentationMode(to: configuration.mode)
 		checkForBlankTouchBar()
 	}
+
+	internal func suspendPresentation() {
+		cancelBlankTouchBarCheck()
+		emptyTouchBarController?.dismiss()
+		emptyTouchBarController = nil
+		guard isVisible else {
+			return
+		}
+		edgeController?.tearDown(invalidate: true)
+		edgeController = nil
+		isVisible = false
+		TouchBarHelper.dismissFromTop(touchBar)
+	}
+
+	internal func resumePresentation() {
+		guard AppController.shared.isLocked == false, isVisible == false else {
+			return
+		}
+		let configuration = presentationConfiguration
+		isVisible = true
+		TouchBarHelper.presentOnTop(touchBar, placement: configuration.placement)
+		TouchBarHelper.setPresentationMode(to: configuration.mode)
+		checkForBlankTouchBar()
+		async(after: 0.05) { [weak self] in
+			guard self?.isVisible == true else {
+				return
+			}
+			self?.reloadScreenEdgeController()
+		}
+	}
 	
 	override func minimize() {
+		cancelBlankTouchBarCheck()
 		emptyTouchBarController?.dismiss()
 		super.minimize()
 	}
 	
 	override func dismiss() {
+		cancelBlankTouchBarCheck()
 		emptyTouchBarController?.dismiss()
 		guard isVisible else {
 			return
@@ -210,6 +243,8 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	// MARK: Blank Touch Bar
 	private func checkForBlankTouchBar() {
+		cancelBlankTouchBarCheck()
+		let generation = blankTouchBarCheckGeneration
 		emptyTouchBarController?.dismiss()
 		emptyTouchBarController = nil
 		guard Preferences[.allowBlankTouchBar] == false else {
@@ -217,6 +252,9 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		}
 		async(after: 0.225) { [weak self] in
 			guard let self = self else {
+				return
+			}
+			guard self.isVisible, self.blankTouchBarCheckGeneration == generation else {
 				return
 			}
 			if self.widgets.isEmpty {
@@ -227,6 +265,10 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 				}
 			}
 		}
+	}
+
+	private func cancelBlankTouchBarCheck() {
+		blankTouchBarCheckGeneration += 1
 	}
 	
 	// MARK: Mouse delegates

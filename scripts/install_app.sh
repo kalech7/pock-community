@@ -36,15 +36,13 @@ if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
   exit 1
 fi
 
-rm -rf "$DESTINATION"
-ditto "$APP_PATH" "$DESTINATION"
-
 if [[ "$SKIP_LOCAL_SIGNING" != "1" ]]; then
-  "$ROOT_DIR/scripts/sign_app.sh" "$DESTINATION"
-else
-  echo "Skipping local signing. macOS may ask for permissions again." >&2
+  exec "$ROOT_DIR/scripts/install_built_app.sh" "$APP_PATH" "$DESTINATION"
 fi
 
+rm -rf "$DESTINATION"
+ditto "$APP_PATH" "$DESTINATION"
+echo "Skipping local signing. macOS may ask for permissions again." >&2
 open "$DESTINATION"
 
 echo "Installed and opened ${DESTINATION}"

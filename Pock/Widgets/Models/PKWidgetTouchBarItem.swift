@@ -29,8 +29,13 @@ internal class PKWidgetTouchBarItem: NSCustomTouchBarItem {
 		guard let clss = widget.principalClass as? PKWidget.Type else {
 			return nil
 		}
+		let widgetInstance = clss.init()
+		guard widgetInstance.view != nil else {
+			Roger.error("[\(widget.bundleIdentifier)][item] - widget returned a nil view")
+			return nil
+		}
 		self.init(identifier: NSTouchBarItem.Identifier(widget.bundleIdentifier))
-		self.widget = clss.init()
+		self.widget = widgetInstance
 		viewController = PKWidgetViewController(item: self)
 	}
 	

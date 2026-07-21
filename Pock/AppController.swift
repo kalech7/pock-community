@@ -42,6 +42,7 @@ internal class AppController: NSResponder {
 	private var nativeReturnHandleItem: NSCustomTouchBarItem?
 	private var shouldRestoreTouchBarAfterUnlock = false
 	private var isShowingNativeTouchBar = false
+	private var isPockSuspendedForNativeTouchBar = false
 	private var lastTouchBarSwapTime: TimeInterval = 0
 	
 	/// Current window controller
@@ -123,6 +124,7 @@ internal class AppController: NSResponder {
                 return
             }
             self.isShowingNativeTouchBar = false
+			self.isPockSuspendedForNativeTouchBar = false
             self.setNativeReturnHandleVisible(false)
             self.pockTouchBarController.restorePresentation()
         }
@@ -138,13 +140,11 @@ internal class AppController: NSResponder {
             Roger.debug("Screen is locked. Tearing down PockTouchBarController...")
             self.touchBarRestoreScheduler.cancel()
             self.setNativeReturnHandleVisible(false)
-            self.shouldRestoreTouchBarAfterUnlock = self.pockTouchBarController?.isVisible == true
+            self.shouldRestoreTouchBarAfterUnlock = self.isShowingNativeTouchBar == false
+				&& self.pockTouchBarController != nil
+			self.closePockCustomizationSession()
             self.isLocked = true
-            if self.shouldRestoreTouchBarAfterUnlock {
-                self.tearDownTouchBar()
-            } else {
-                TouchBarHelper.markTouchBarAsDimmed(true)
-            }
+			self.tearDownTouchBar()
         }.store(in: &disposeBag)
         // listen for `screen is unlocked`
         notificationCenter.publisher(for: .init("com.apple.screenIsUnlocked")).sink { [weak self] _ in
@@ -152,12 +152,14 @@ internal class AppController: NSResponder {
                 return
             }
             self.isLocked = false
-            TouchBarHelper.markTouchBarAsDimmed(false)
             if self.shouldRestoreTouchBarAfterUnlock {
                 Roger.debug("Screen is unlocked. Preparing PockTouchBarController...")
                 self.shouldRestoreTouchBarAfterUnlock = false
-                self.prepareTouchBar()
-            } else if self.pockTouchBarController?.isVisible == false {
+				self.showPockTouchBar()
+			} else if self.isShowingNativeTouchBar {
+				Roger.debug("Screen is unlocked. Native Touch Bar remains visible.")
+				self.refreshNativeTouchBarSwitchRepeatedly()
+			} else if self.pockTouchBarController?.isVisible == false {
                 Roger.debug("Screen is unlocked. PockTouchBarController remains hidden.")
                 self.refreshNativeTouchBarSwitch()
             } else {
@@ -197,7 +199,17 @@ internal class AppController: NSResponder {
 	
 	/// Setup
 	internal func prepareTouchBar() {
+		guard isLocked == false else {
+			if isShowingNativeTouchBar == false {
+				shouldRestoreTouchBarAfterUnlock = true
+			}
+			return
+		}
+		guard pockTouchBarController == nil, navigationController == nil else {
+			return
+		}
 		isShowingNativeTouchBar = false
+		isPockSuspendedForNativeTouchBar = false
 		setNativeReturnHandleVisible(false)
 		pockTouchBarController = PockTouchBarController.load()
 		navigationController = PKTouchBarNavigationController(rootController: pockTouchBarController)
@@ -248,18 +260,24 @@ internal class AppController: NSResponder {
 		navigationController?.dismiss()
 		pockTouchBarController = nil
 		navigationController = nil
+		isPockSuspendedForNativeTouchBar = false
 	}
 
 	/// Reload
 	@objc internal func reload(shouldFetchLatestVersions: Bool) {
 		func _reload() {
+			let shouldRemainNative = isShowingNativeTouchBar
 			pendingTouchBarReload?.cancel()
 			tearDownTouchBar()
 			let workItem = DispatchWorkItem { [weak self] in
 				guard let self = self else {
 					return
 				}
-				self.prepareTouchBar()
+				if shouldRemainNative, self.isShowingNativeTouchBar {
+					self.refreshNativeTouchBarSwitchRepeatedly()
+				} else {
+					self.prepareTouchBar()
+				}
 				self.pendingTouchBarReload = nil
 			}
 			pendingTouchBarReload = workItem
@@ -306,15 +324,12 @@ internal class AppController: NSResponder {
 		guard acceptTouchBarSwapRequest() else {
 			return
 		}
-		if pockTouchBarController == nil {
-			prepareTouchBar()
+		if isShowingNativeTouchBar || pockTouchBarController == nil {
+			showPockTouchBar()
+		} else if navigationController.visibleController?.isVisible == true {
+			showNativeTouchBar()
 		} else {
-			if navigationController.visibleController?.isVisible == true {
-				showNativeTouchBar()
-			} else {
-				setNativeReturnHandleVisible(false)
-				TouchBarHelper.markTouchBarAsDimmed(false)
-			}
+			showPockTouchBar()
 		}
 	}
 
@@ -338,12 +353,25 @@ internal class AppController: NSResponder {
 
 	@objc internal func showPockTouchBar() {
 		guard isLocked == false else {
+			shouldRestoreTouchBarAfterUnlock = true
 			return
 		}
 		isShowingNativeTouchBar = false
 		setNativeReturnHandleVisible(false)
+		if isPockSuspendedForNativeTouchBar, let controller = pockTouchBarController {
+			isPockSuspendedForNativeTouchBar = false
+			controller.resumePresentation()
+			return
+		}
 		guard isVisible == false else {
 			pockTouchBarController.restorePresentation()
+			return
+		}
+		guard navigationController?.visibleController?.isVisible != true else {
+			return
+		}
+		if pockTouchBarController != nil {
+			navigationController?.deminimize()
 			return
 		}
 		prepareTouchBar()
@@ -353,17 +381,27 @@ internal class AppController: NSResponder {
 		guard isLocked == false else {
 			return
 		}
-		guard isShowingNativeTouchBar == false || isVisible else {
+		guard isShowingNativeTouchBar == false else {
 			return
 		}
 		touchBarRestoreScheduler.cancel()
-		let shouldReloadNativeTouchBar = NSFunctionRow.activeFunctionRows().count <= 1
-		tearDownTouchBar()
+		pendingTouchBarReload?.cancel()
+		pendingTouchBarReload = nil
+		let nativePresentationMode = Preferences[.userDefinedPresentationMode] as PresentationMode
+		let presentationModeNeedsChange = TouchBarHelper.currentPresentationMode != nativePresentationMode
+		if let controller = pockTouchBarController,
+		   navigationController?.visibleController === controller {
+			controller.suspendPresentation()
+			isPockSuspendedForNativeTouchBar = true
+		} else {
+			tearDownTouchBar()
+		}
 		isShowingNativeTouchBar = true
-		let didRestorePresentationMode = TouchBarHelper.setPresentationMode(
-			to: Preferences[.userDefinedPresentationMode] as PresentationMode
-		)
-		if shouldReloadNativeTouchBar && didRestorePresentationMode == false {
+		if presentationModeNeedsChange {
+			if TouchBarHelper.setPresentationMode(to: nativePresentationMode) == false {
+				TouchBarHelper.reloadTouchBarAgent()
+			}
+		} else {
 			TouchBarHelper.reloadTouchBarAgent()
 		}
 		refreshNativeTouchBarSwitchRepeatedly()
@@ -371,7 +409,7 @@ internal class AppController: NSResponder {
 
 	private func acceptTouchBarSwapRequest() -> Bool {
 		let now = ProcessInfo.processInfo.systemUptime
-		guard now - lastTouchBarSwapTime > 0.35 else {
+		guard now - lastTouchBarSwapTime > 0.1 else {
 			return false
 		}
 		lastTouchBarSwapTime = now
@@ -388,8 +426,12 @@ internal class AppController: NSResponder {
 	
 	/// Register for internal notifications
 	private func registerForInternalNotifications() {
-		NotificationCenter.default.addObserver(self, selector: #selector(reload), name: .shouldReloadPock, object: nil)
+		NotificationCenter.default.addObserver(self, selector: #selector(handleShouldReloadPock(_:)), name: .shouldReloadPock, object: nil)
 		NotificationCenter.default.addObserver(self, selector: #selector(prepareOnceADayTimer), name: .shouldEnableAutomaticUpdates, object: nil)
+	}
+
+	@objc private func handleShouldReloadPock(_ notification: Notification) {
+		reload(shouldFetchLatestVersions: false)
 	}
 
 	/// Register Pock/System Touch Bar hotkey
@@ -511,6 +553,9 @@ extension AppController: NSTouchBarDelegate {
 	
 	/// Open customization menu
 	@objc internal func openPockCustomizationPalette() {
+		if isShowingNativeTouchBar {
+			showPockTouchBar()
+		}
 		if pockTouchBarController == nil {
 			prepareTouchBar()
 		}
@@ -548,7 +593,8 @@ extension AppController: NSTouchBarDelegate {
 		if identifier == PockTouchBarController.nativeTouchBarToggleIdentifier {
 			return pockTouchBarController.makeNativeTouchBarToggleItem()
 		}
-		let item = pockTouchBarController.touchBar?.item(forIdentifier: identifier)
+		let item = pockTouchBarController.cachedItems[identifier]
+			?? pockTouchBarController.touchBar?.item(forIdentifier: identifier)
 			?? pockTouchBarController.widgets[identifier].flatMap({ PKWidgetTouchBarItem(widget: $0) })
 		guard let item = item else {
 			Roger.error("Can't find `NSTouchBarItem` for given identifier: `\(identifier)`")
@@ -577,14 +623,25 @@ extension AppController: NSTouchBarDelegate {
 	}
 	
 	@objc private func didExitCustomization(_ sender: Any?) {
-		if let identifiers = customizationHostView?.touchBar?.itemIdentifiers {
-			pockTouchBarController.savePreferredItemIdentifiers(identifiers)
+		guard let controller = pockTouchBarController else {
+			closePockCustomizationSession()
+			return
 		}
+		if let identifiers = customizationHostView?.touchBar?.itemIdentifiers {
+			controller.savePreferredItemIdentifiers(identifiers)
+		}
+		closePockCustomizationSession()
+		if isShowingNativeTouchBar == false {
+			showPockTouchBar()
+		}
+	}
+
+	private func closePockCustomizationSession() {
 		removeCustomizationObservers()
+		customizationHostView?.touchBar = nil
 		customizationWindowController?.close()
 		customizationWindowController = nil
 		customizationHostView = nil
-		pockTouchBarController.present()
 	}
 	
 }

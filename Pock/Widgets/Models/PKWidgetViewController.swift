@@ -19,7 +19,7 @@ internal class PKWidgetViewController: NSViewController {
 		self.init()
 		widgetIdentifier = item.identifier.rawValue
 		widgetItem = item
-		view = item.widget!.view
+		view = item.widget?.view ?? NSView(frame: .zero)
 	}
 	
 	deinit {

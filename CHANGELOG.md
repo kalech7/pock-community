@@ -9,6 +9,13 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-11 Community
+
+- Preserve the local code-signing requirement during installation, preventing unnecessary Accessibility permission prompts after an update.
+- Refuse unsafe replacements when the existing installation has a different signing requirement.
+- Keep Pock and the native Touch Bar switch responsive through lock/unlock, reload, and customization flows.
+- Avoid blank Touch Bar and nil widget-view failures during presentation changes.
+
 ## 0.10.1-10 Community
 
 - Avoided prompting for Accessibility again when macOS already trusts Pock Community.

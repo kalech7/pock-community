@@ -8,7 +8,7 @@ This fork is not the official Pock project and is not endorsed by the original a
 
 - App name used by this repository: **Pock Community**
 - Distributed app bundle: `Pock.app`
-- Current app version in the Xcode project: `0.10.0` build `5`
+- Current app version in the Xcode project: `0.10.1` build `11`
 - Telemetry: none. Analytics and crash-reporting dependencies have been removed.
 - Primary platform: macOS on MacBook models with a physical Touch Bar
 - License: MIT, with original attribution preserved in [LICENSE.md](LICENSE.md)
