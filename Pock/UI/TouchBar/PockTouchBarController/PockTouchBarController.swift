@@ -273,7 +273,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		return true
 	}
 
-	@objc private func showAgentActivity() {
+	@objc internal func showAgentActivity() {
 		guard isVisible, !AppController.shared.isLocked, !isShowingAgentActivity else { return }
 		cancelBlankTouchBarCheck()
 		edgeController?.tearDown(invalidate: true)

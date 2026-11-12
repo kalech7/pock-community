@@ -37,11 +37,53 @@ class WidgetsManagerViewController: NSViewController {
 	@IBOutlet private weak var checkForWidgetsUpdateButton: NSButton!
 	
 	// MARK: Data
-	
-	private var widgets: [PKWidgetInfo] {
-		return WidgetsLoader.installedWidgets.sorted(by: { $0.name < $1.name })
+
+	private enum BuiltInWidget: CaseIterable {
+		case weather, agentActivity
+
+		var name: String {
+			switch self {
+			case .weather: return "Weather".localized
+			case .agentActivity: return "AI Activity".localized
+			}
+		}
+
+		var identifier: String {
+			switch self {
+			case .weather: return WeatherTouchBarItem.itemIdentifier.rawValue
+			case .agentActivity: return PockTouchBarController.nativeTouchBarToggleIdentifier.rawValue
+			}
+		}
 	}
-	private var selectedWidget: PKWidgetInfo? {
+
+	private enum Entry {
+		case builtIn(BuiltInWidget)
+		case installed(PKWidgetInfo)
+
+		var name: String {
+			switch self {
+			case .builtIn(let widget): return widget.name
+			case .installed(let widget): return widget.name
+			}
+		}
+
+		var identifier: String {
+			switch self {
+			case .builtIn(let widget): return "built-in:\(widget.identifier)"
+			case .installed(let widget): return widget.bundleIdentifier
+			}
+		}
+
+		var installedWidget: PKWidgetInfo? {
+			if case .installed(let widget) = self { return widget }
+			return nil
+		}
+	}
+
+	private var entries: [Entry] = []
+	private var isReloadingList = false
+	private var selectedWidget: PKWidgetInfo? { return selectedEntry?.installedWidget }
+	private var selectedEntry: Entry? {
 		didSet {
 			if let widget = selectedWidget {
 				selectedWidgetNewVersion = Updater.newVersion(for: widget)
@@ -53,6 +95,7 @@ class WidgetsManagerViewController: NSViewController {
 		}
 	}
 	private var selectedPreferences: PKWidgetPreference?
+	private var builtInPanel: NSView?
 	private var selectedWidgetNewVersion: Updater.WidgetVersion?
 	
 	/// Set of disabled widget's `bundleIdentifier` to avoid user selection
@@ -73,8 +116,9 @@ class WidgetsManagerViewController: NSViewController {
 		super.viewDidLoad()
 		self.tableView.register(NSNib(nibNamed: "PKWidgetCellView", bundle: .main), forIdentifier: CellIdentifiers.widgetCell)
 		self.configureUIElements()
-		AppController.shared.reloadWidgets { [weak self] in self?.reloadWidgetList() }
+		reloadWidgetList()
 		NotificationCenter.default.addObserver(self, selector: #selector(reload), name: .didLoadWidgets, object: nil)
+		AppController.shared.reloadWidgets { }
 	}
 	
 	override func viewWillAppear() {
@@ -97,7 +141,6 @@ class WidgetsManagerViewController: NSViewController {
 	
 	deinit {
 		NotificationCenter.default.removeObserver(self)
-		selectedWidget = nil
 		Roger.debug("[WidgetsManager][List] - deinit")
 	}
 	
@@ -114,15 +157,16 @@ extension WidgetsManagerViewController {
 	}
 
 	private func reloadWidgetList() {
-		let previouslySelected = selectedWidget?.bundleIdentifier
-		let currentWidgets = widgets
+		let previouslySelected = selectedEntry?.identifier
+		let builtIn = BuiltInWidget.allCases.map(Entry.builtIn)
+		let installed = WidgetsLoader.installedWidgets.map(Entry.installed)
+		entries = (builtIn + installed).sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+		let row = entries.firstIndex { $0.identifier == previouslySelected } ?? 0
+		isReloadingList = true
 		tableView.reloadData()
-		guard let row = currentWidgets.firstIndex(where: { $0.bundleIdentifier == previouslySelected }) ?? currentWidgets.indices.first else {
-			selectedWidget = nil
-			return
-		}
 		tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-		selectedWidget = currentWidgets[row]
+		isReloadingList = false
+		selectedEntry = entries[row]
 	}
 	
 	private func updatePreferredContentSize() {
@@ -135,6 +179,21 @@ extension WidgetsManagerViewController {
 	}
 	
 	private func updateUIElementsForSelectedWidget() {
+		let isBuiltIn: Bool
+		if case .builtIn = selectedEntry {
+			isBuiltIn = true
+		} else {
+			isBuiltIn = false
+		}
+		widgetUninstallButton.isHidden = isBuiltIn
+		widgetUpdateButton.isHidden = isBuiltIn
+		if case .builtIn(let widget) = selectedEntry {
+			widgetNameLabel.stringValue = widget.name
+			widgetAuthorLabel.stringValue = "Built into Pock".localized
+			widgetVersionLabel.stringValue = Updater.fullAppVersion
+			widgetUpdateStatusLabel.isHidden = true
+			return
+		}
 		guard let widget = selectedWidget else {
 			widgetNameLabel.stringValue = "widgets-manager.list.select-widget".localized
 			widgetAuthorLabel.stringValue = "--"
@@ -156,6 +215,10 @@ extension WidgetsManagerViewController {
 	}
 	
 	private func updatePreferencesContainerForSelectedPreferences() {
+		if case .builtIn(let widget) = selectedEntry {
+			showBuiltInPreferences(widget)
+			return
+		}
 		guard let widget = selectedWidget, let clss = widget.preferencesClass as? PKWidgetPreference.Type else {
 			unloadPreferencesContainerWithTitle("widgets-manager.list.no-preferences".localized)
 			selectedPreferences = nil
@@ -168,6 +231,56 @@ extension WidgetsManagerViewController {
 			selectedPreferences = clss.init(nibName: clss.nibName, bundle: Bundle(for: clss))
 			loadPreferencesContainerForSelectedPreferences()
 		}
+	}
+
+	private func showBuiltInPreferences(_ widget: BuiltInWidget) {
+		unloadPreferencesContainerWithTitle("")
+		widgetPreferencesStatusLabel.isHidden = true
+		let description: String
+		let buttons: [NSButton]
+		switch widget {
+		case .weather:
+			description = "Choose a city and temperature unit. Add Weather to your Touch Bar from Customize Pock.".localized
+			buttons = [
+				NSButton(title: "Configure Weather…".localized, target: self, action: #selector(configureWeather)),
+				NSButton(title: "menu.customization.pock".localized, target: self, action: #selector(customizePock))
+			]
+		case .agentActivity:
+			description = "See running agent sessions. Open AI Activity here or use the dot-and-arrow button on the Touch Bar.".localized
+			buttons = [NSButton(title: "touchbar.show-ai-activity".localized, target: self, action: #selector(showAgentActivity))]
+		}
+		let label = NSTextField(wrappingLabelWithString: description)
+		label.textColor = .secondaryLabelColor
+		let actions = NSStackView(views: buttons)
+		actions.orientation = .horizontal
+		actions.spacing = 8
+		let panel = NSStackView(views: [label, actions])
+		panel.orientation = .vertical
+		panel.alignment = .leading
+		panel.spacing = 12
+		panel.translatesAutoresizingMaskIntoConstraints = false
+		widgetPreferencesContainer.addSubview(panel)
+		NSLayoutConstraint.activate([
+			panel.topAnchor.constraint(equalTo: widgetPreferencesContainer.topAnchor, constant: 20),
+			panel.leadingAnchor.constraint(equalTo: widgetPreferencesContainer.leadingAnchor, constant: 20),
+			panel.trailingAnchor.constraint(lessThanOrEqualTo: widgetPreferencesContainer.trailingAnchor, constant: -20),
+			label.widthAnchor.constraint(lessThanOrEqualTo: panel.widthAnchor)
+		])
+		builtInPanel = panel
+	}
+
+	@objc private func configureWeather() {
+		WeatherTouchBarItem.openSettings()
+	}
+
+	@objc private func customizePock() {
+		AppController.shared.openPockCustomizationPalette()
+	}
+
+	@objc private func showAgentActivity() {
+		let controller = AppController.shared
+		if !controller.isVisible { controller.showPockTouchBar() }
+		controller.pockTouchBarController?.showAgentActivity()
 	}
 	
 	private func loadPreferencesContainerForSelectedPreferences() {
@@ -189,6 +302,8 @@ extension WidgetsManagerViewController {
 	private func unloadPreferencesContainerWithTitle(_ title: String) {
         widgetPreferencesHorizontalLine.isHidden = true
         widgetPreferencesResetButton.isHidden = true
+		builtInPanel?.removeFromSuperview()
+		builtInPanel = nil
         selectedPreferences?.view.removeFromSuperview()
 		selectedPreferences?.removeFromParent()
 		selectedPreferences = nil
@@ -236,10 +351,13 @@ extension WidgetsManagerViewController {
 	}
     
     @IBAction private func resetWidgetPreferences(_ sender: Any?) {
-        selectedPreferences?.reset()
+        guard let preferences = selectedPreferences else { return }
+        preferences.reset()
+        let identifier = selectedEntry?.identifier
         unloadPreferencesContainerWithTitle("Resetting preferences to default values…")
         async(after: 1.325) { [weak self] in
-            self?.updatePreferencesContainerForSelectedPreferences()
+            guard let self = self, self.selectedEntry?.identifier == identifier else { return }
+            self.updatePreferencesContainerForSelectedPreferences()
         }
     }
 	
@@ -250,7 +368,7 @@ extension WidgetsManagerViewController {
 extension WidgetsManagerViewController: NSTableViewDataSource {
 	
 	func numberOfRows(in tableView: NSTableView) -> Int {
-		return widgets.count
+		return entries.count
 	}
 	
 	func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
@@ -270,26 +388,24 @@ extension WidgetsManagerViewController: NSTableViewDelegate {
 	/// View for cell in row
 	func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
 		/// Check for cell
-		guard row < widgets.count, let cell = tableView.makeView(withIdentifier: CellIdentifiers.widgetCell, owner: nil) as? PKWidgetCellView else {
+		guard entries.indices.contains(row), let cell = tableView.makeView(withIdentifier: CellIdentifiers.widgetCell, owner: nil) as? PKWidgetCellView else {
 			return nil
 		}
-		/// Get item
-		let widget = widgets[row]
-		let disabled = disabledWidgets.contains(where: { $0 == widget.bundleIdentifier })
-		/// Setup cell
-		cell.status.image = NSImage(named: widget.loaded ? NSImage.statusAvailableName : NSImage.statusUnavailableName)
-		cell.name.stringValue = widget.name
-		cell.name.alphaValue  = disabled ? 0.475 : 1
-        let newVersion = Updater.newVersion(for: widget)
-        cell.badge.isHidden = disabled || newVersion.version == nil && newVersion.error == nil
-		/// Return
+		let entry = entries[row]
+		let widget = entry.installedWidget
+		let disabled = widget.map { disabledWidgets.contains($0.bundleIdentifier) } ?? false
+		cell.status.image = NSImage(named: widget?.loaded == false ? NSImage.statusUnavailableName : NSImage.statusAvailableName)
+		cell.name.stringValue = entry.name
+		cell.name.alphaValue = disabled ? 0.475 : 1
+		let newVersion = widget.map { Updater.newVersion(for: $0) }
+		cell.badge.isHidden = disabled || (newVersion?.version == nil && newVersion?.error == nil)
 		return cell
 	}
 	
 	func tableViewSelectionDidChange(_ notification: Notification) {
-		let currentWidgets = widgets
+		guard !isReloadingList else { return }
 		let row = tableView.selectedRow
-		selectedWidget = currentWidgets.indices.contains(row) ? currentWidgets[row] : nil
+		selectedEntry = entries.indices.contains(row) ? entries[row] : nil
 	}
 	
 }

@@ -5,6 +5,10 @@ internal final class WeatherTouchBarItem: NSCustomTouchBarItem {
 
 	static let itemIdentifier = NSTouchBarItem.Identifier("io.github.pock.weather")
 
+	static func openSettings() {
+		WeatherSettingsWindowController.shared.present()
+	}
+
 	convenience init() {
 		self.init(identifier: Self.itemIdentifier)
 		customizationLabel = "Weather"
@@ -194,7 +198,7 @@ private final class WeatherButtonController: NSViewController {
 	}
 
 	@objc private func openSettings() {
-		WeatherSettingsWindowController.shared.present()
+		WeatherTouchBarItem.openSettings()
 	}
 
 	private func render(_ state: WeatherModel.State) {
