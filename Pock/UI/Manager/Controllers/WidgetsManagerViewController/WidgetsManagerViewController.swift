@@ -6,6 +6,8 @@
 //
 
 import Cocoa
+import Combine
+import EventKit
 import PockKit
 import TinyConstraints
 
@@ -39,12 +41,13 @@ class WidgetsManagerViewController: NSViewController {
 	// MARK: Data
 
 	private enum BuiltInWidget: CaseIterable {
-		case weather, agentActivity
+		case weather, agentActivity, nextMeeting
 
 		var name: String {
 			switch self {
 			case .weather: return "Weather".localized
 			case .agentActivity: return "AI Activity".localized
+			case .nextMeeting: return NextMeetingReminder.name
 			}
 		}
 
@@ -52,6 +55,7 @@ class WidgetsManagerViewController: NSViewController {
 			switch self {
 			case .weather: return WeatherTouchBarItem.itemIdentifier.rawValue
 			case .agentActivity: return PockTouchBarController.nativeTouchBarToggleIdentifier.rawValue
+			case .nextMeeting: return NextMeetingReminder.identifier
 			}
 		}
 	}
@@ -248,6 +252,9 @@ extension WidgetsManagerViewController {
 		case .agentActivity:
 			description = "See running agent sessions. Open AI Activity here or use the dot-and-arrow button on the Touch Bar.".localized
 			buttons = [NSButton(title: "touchbar.show-ai-activity".localized, target: self, action: #selector(showAgentActivity))]
+		case .nextMeeting:
+			mountBuiltInPanel(NextMeetingPreferencesView())
+			return
 		}
 		let label = NSTextField(wrappingLabelWithString: description)
 		label.textColor = .secondaryLabelColor
@@ -258,13 +265,17 @@ extension WidgetsManagerViewController {
 		panel.orientation = .vertical
 		panel.alignment = .leading
 		panel.spacing = 12
+		label.widthAnchor.constraint(lessThanOrEqualTo: panel.widthAnchor).isActive = true
+		mountBuiltInPanel(panel)
+	}
+
+	private func mountBuiltInPanel(_ panel: NSView) {
 		panel.translatesAutoresizingMaskIntoConstraints = false
 		widgetPreferencesContainer.addSubview(panel)
 		NSLayoutConstraint.activate([
 			panel.topAnchor.constraint(equalTo: widgetPreferencesContainer.topAnchor, constant: 20),
 			panel.leadingAnchor.constraint(equalTo: widgetPreferencesContainer.leadingAnchor, constant: 20),
-			panel.trailingAnchor.constraint(lessThanOrEqualTo: widgetPreferencesContainer.trailingAnchor, constant: -20),
-			label.widthAnchor.constraint(lessThanOrEqualTo: panel.widthAnchor)
+			panel.trailingAnchor.constraint(lessThanOrEqualTo: widgetPreferencesContainer.trailingAnchor, constant: -20)
 		])
 		builtInPanel = panel
 	}
@@ -408,4 +419,146 @@ extension WidgetsManagerViewController: NSTableViewDelegate {
 		selectedEntry = entries.indices.contains(row) ? entries[row] : nil
 	}
 	
+}
+
+private final class NextMeetingPreferencesView: NSStackView {
+	private let calendar = MeetingCalendar.shared
+	private let calendarMenu = NSPopUpButton(frame: .zero, pullsDown: false)
+	private let accessButton = NSButton()
+	private let status = NSTextField(wrappingLabelWithString: "")
+	private var observations = Set<AnyCancellable>()
+	private var lastAccess: MeetingCalendar.Access?
+	private var revision = 0
+
+	init() {
+		super.init(frame: .zero)
+		orientation = .vertical
+		alignment = .leading
+		spacing = 12
+
+		let instructions = NSTextField(wrappingLabelWithString:
+			"To sync Google, iCloud, or Exchange, open Calendar and choose Calendar > Add Account.".localized)
+		instructions.textColor = .secondaryLabelColor
+		instructions.maximumNumberOfLines = 0
+		status.textColor = .secondaryLabelColor
+		status.isHidden = true
+
+		let reminders = NSButton(checkboxWithTitle: "Remind me 5 minutes before meetings".localized,
+			target: self, action: #selector(toggleReminders(_:)))
+		reminders.state = calendar.remindersEnabled ? .on : .off
+		let calendarLabel = NSTextField(labelWithString: "Calendars for reminders".localized)
+		calendarMenu.setAccessibilityLabel(calendarLabel.stringValue)
+		calendarMenu.target = self
+		calendarMenu.action = #selector(selectCalendar)
+		calendarMenu.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+		let selection = NSStackView(views: [calendarLabel, calendarMenu])
+		selection.spacing = 8
+
+		accessButton.bezelStyle = .rounded
+		accessButton.target = self
+		accessButton.action = #selector(openAccess)
+		let actions = NSStackView(views: [
+			accessButton,
+			NSButton(title: "Open Calendar".localized, target: self, action: #selector(openCalendar))
+		])
+		actions.spacing = 8
+
+		for row in [reminders, selection, status, instructions, actions] { addArrangedSubview(row) }
+		NSLayoutConstraint.activate([
+			instructions.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor),
+			selection.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor),
+			status.widthAnchor.constraint(lessThanOrEqualTo: widthAnchor)
+		])
+	}
+
+	required init?(coder: NSCoder) { return nil }
+
+	override func viewDidMoveToWindow() {
+		super.viewDidMoveToWindow()
+		revision += 1
+		observations.removeAll()
+		guard window != nil else { return }
+
+		let center = NotificationCenter.default
+		Publishers.MergeMany(center.publisher(for: .EKEventStoreChanged),
+			center.publisher(for: MeetingCalendar.accessChanged))
+			.debounce(for: .milliseconds(200), scheduler: RunLoop.main)
+			.sink { [weak self] _ in self?.reloadCalendars() }
+			.store(in: &observations)
+		NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)
+			.receive(on: RunLoop.main)
+			.sink { [weak self] _ in
+				guard let self = self, self.lastAccess != self.calendar.access else { return }
+				self.reloadCalendars()
+			}
+			.store(in: &observations)
+		reloadCalendars()
+	}
+
+	private func reloadCalendars() {
+		revision += 1
+		let currentRevision = revision
+		let access = calendar.access
+		lastAccess = access
+		accessButton.isHidden = access == .granted
+		accessButton.title = access == .canRequest ? "Allow Calendar Access…".localized : "Calendar Privacy Settings…".localized
+		guard access == .granted else {
+			calendarMenu.removeAllItems()
+			calendarMenu.addItem(withTitle: "Calendar access required".localized)
+			calendarMenu.isEnabled = false
+			status.isHidden = true
+			return
+		}
+		if calendarMenu.numberOfItems == 0 || !calendarMenu.isEnabled {
+			calendarMenu.removeAllItems()
+			calendarMenu.addItem(withTitle: "Loading calendars…".localized)
+			calendarMenu.isEnabled = false
+		}
+		calendar.loadCalendars { [weak self] calendars in
+			guard let self = self, self.revision == currentRevision else { return }
+			guard self.calendar.access == .granted else {
+				self.reloadCalendars()
+				return
+			}
+			self.showCalendars(calendars)
+		}
+	}
+
+	private func showCalendars(_ calendars: [MeetingCalendar.CalendarOption]) {
+		calendarMenu.removeAllItems()
+		calendarMenu.addItem(withTitle: "All Calendars".localized)
+		let groups = Dictionary(grouping: calendars, by: \.account)
+		for account in groups.keys.sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }) {
+			calendarMenu.menu?.addItem(.separator())
+			for option in (groups[account] ?? []).sorted(by: { $0.title.localizedStandardCompare($1.title) == .orderedAscending }) {
+				let title = account.isEmpty ? option.title : "\(option.title) — \(account)"
+				let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+				item.representedObject = option.identifier
+				calendarMenu.menu?.addItem(item)
+			}
+		}
+		let selected = calendar.selectedCalendarIdentifier
+		let missing = selected.map { identifier in !calendars.contains { $0.identifier == identifier } } ?? false
+		if let selected = selected, missing {
+			calendarMenu.addItem(withTitle: "Calendar unavailable".localized)
+			calendarMenu.lastItem?.representedObject = selected
+		}
+		let item = calendarMenu.itemArray.first { !$0.isSeparatorItem && ($0.representedObject as? String) == selected }
+		calendarMenu.select(item)
+		calendarMenu.isEnabled = true
+		status.stringValue = missing ? "Choose another calendar or reconnect its account.".localized : "No calendars are synced.".localized
+		status.isHidden = !missing && !calendars.isEmpty
+	}
+
+	@objc private func selectCalendar() {
+		calendar.selectedCalendarIdentifier = calendarMenu.selectedItem?.representedObject as? String
+		if !status.isHidden { reloadCalendars() }
+	}
+
+	@objc private func toggleReminders(_ sender: NSButton) {
+		calendar.remindersEnabled = sender.state == .on
+	}
+
+	@objc private func openAccess() { calendar.openAccess() }
+	@objc private func openCalendar() { calendar.openCalendar() }
 }

@@ -1,16 +1,16 @@
-# Pock Community 0.10.1-14
+# Pock Community 0.10.1-15
 
 Pock Community is an unofficial community-maintained fork of Pock. This release is not an official Pock release and is not endorsed by the original authors.
 
 ## Highlights
 
-- Fixes an unexpected quit when macOS dims the Touch Bar.
-- AI Activity reacts to session file changes and checks less often when its list is empty.
-- Weather does less drawing while scrolling details. Both widgets are available in **Pock → Widgets → Manage widgets…**.
+- Next Meeting shows a temporary reminder five minutes before an event, with a blue video button to join supported calls. It takes up no space between meetings.
+- Weather refreshes when its data is due, stops rendering updates while hidden, and reduces drawing during text scrolling.
+- The meeting reminder reads a shorter calendar window and avoids scheduled refreshes when turned off. Enable and configure it in **Pock → Widgets → Manage widgets…**.
 
 ## Installation
 
-1. Download `Pock-Community-0.10.1-14.zip`.
+1. Download `Pock-Community-0.10.1-15.zip`.
 2. Unzip it.
 3. Move `Pock.app` to `/Applications`.
 4. Open Pock Community.
@@ -22,7 +22,7 @@ This release targets macOS 10.15 and later and is intended for MacBook models wi
 
 ## Security And Privacy
 
-This fork does not include telemetry, analytics, or tracking. AI Activity records are stored on your Mac. The weather widget requests forecasts and public holidays from Open-Meteo and Nager.Date.
+This fork does not include telemetry, analytics, or tracking. AI Activity records are stored on your Mac. The weather widget requests forecasts and public holidays from Open-Meteo and Nager.Date. Next Meeting reads your chosen calendars locally through macOS after you grant access.
 
 This binary is locally signed but not notarized. macOS may show a security prompt on first launch. Users may need to allow the app from **System Settings > Privacy & Security**.
 

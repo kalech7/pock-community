@@ -77,6 +77,10 @@
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Pock reads your calendar to show your next event and its meeting link on the Touch Bar.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Pock reads your calendar to show your next event and its meeting link on the Touch Bar.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Copyright © 2021 Pierluigi Galdi. All rights reserved.</string>
 	<key>NSMainNibFile</key>

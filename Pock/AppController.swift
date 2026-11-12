@@ -38,6 +38,14 @@ internal class AppController: NSResponder {
 	private var onceADayTimer: Timer?
 	private var pendingTouchBarReload: DispatchWorkItem?
 	private let touchBarRestoreScheduler = TouchBarRestoreScheduler()
+	private lazy var nextMeetingReminder = NextMeetingReminder(canPresent: { [weak self] in
+		guard self?.isLocked == false, CGDisplayIsAsleep(CGMainDisplayID()) == 0,
+			  let session = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+		return session[kCGSessionOnConsoleKey as String] as? Bool == true
+			&& session["CGSSessionScreenIsLocked"] as? Bool != true
+	}, didDismiss: { [weak self] in
+		if self?.isVisible == true { TouchBarHelper.hideCloseButtonIfNeededRepeatedly() }
+	})
 	private let nativeReturnHandleItemIdentifier = NSTouchBarItem.Identifier("io.github.pock.native-touchbar-return")
 	private var nativeReturnHandleItem: NSCustomTouchBarItem?
 	private var shouldRestoreTouchBarAfterUnlock = false
@@ -73,6 +81,7 @@ internal class AppController: NSResponder {
 		repairInstalledWidgets()
         startListeningForScreenLockNotifications()
         startListeningForApplicationActivationNotifications()
+		nextMeetingReminder.start()
         // Show fake badge for testing
         #if DEBUG
         NSApp.dockTile.badgeLabel = "stage"
@@ -112,7 +121,7 @@ internal class AppController: NSResponder {
     }
 
     private func scheduleTouchBarRestore() {
-        guard isLocked == false, pockTouchBarController?.isVisible == true else {
+        guard isLocked == false, !nextMeetingReminder.isPresented, pockTouchBarController?.isVisible == true else {
             touchBarRestoreScheduler.cancel()
             return
         }
@@ -121,6 +130,7 @@ internal class AppController: NSResponder {
                 return
             }
             guard self.isLocked == false,
+				  !self.nextMeetingReminder.isPresented,
                   self.pockTouchBarController?.isVisible == true else {
                 return
             }
@@ -145,6 +155,7 @@ internal class AppController: NSResponder {
 				&& self.pockTouchBarController != nil
 			self.closePockCustomizationSession()
             self.isLocked = true
+			self.nextMeetingReminder.suspend()
 			self.tearDownTouchBar()
         }.store(in: &disposeBag)
         // listen for `screen is unlocked`
@@ -166,6 +177,7 @@ internal class AppController: NSResponder {
             } else {
                 Roger.debug("Screen is unlocked. PockTouchBarController is already visible...")
             }
+			self.nextMeetingReminder.refresh()
         }.store(in: &disposeBag)
     }
 	
@@ -257,6 +269,7 @@ internal class AppController: NSResponder {
 	/// Dismiss
 	internal func tearDownTouchBar() {
 		touchBarRestoreScheduler.cancel()
+		nextMeetingReminder.dismiss()
 		setNativeReturnHandleVisible(false)
 		navigationController?.dismiss()
 		pockTouchBarController = nil
@@ -357,6 +370,7 @@ internal class AppController: NSResponder {
 			shouldRestoreTouchBarAfterUnlock = true
 			return
 		}
+		nextMeetingReminder.dismiss()
 		isShowingNativeTouchBar = false
 		setNativeReturnHandleVisible(false)
 		if isPockSuspendedForNativeTouchBar, let controller = pockTouchBarController {
@@ -382,6 +396,7 @@ internal class AppController: NSResponder {
 		guard isLocked == false else {
 			return
 		}
+		nextMeetingReminder.dismiss()
 		let nativePresentationMode = Preferences[.userDefinedPresentationMode] as PresentationMode
 		guard isShowingNativeTouchBar == false else {
 			TouchBarHelper.setPresentationMode(to: nativePresentationMode)

@@ -58,6 +58,7 @@ private final class WeatherModel {
 	private static let unitKey = "weatherTemperatureUnit"
 
 	@Published private(set) var state: State
+	let refreshDatesChanged = PassthroughSubject<Void, Never>()
 	private let service = WeatherService()
 	private var task: URLSessionDataTask?
 	private var requestID: UUID?
@@ -67,6 +68,18 @@ private final class WeatherModel {
 	private var holidayTask: URLSessionDataTask?
 	private var holidayRequestID: UUID?
 	private var holidayRetryAfter = Date.distantPast
+
+	var nextRefreshDate: Date? {
+		guard let place = state.place else { return nil }
+		var dates: [Date] = []
+		if requestID == nil { dates.append(refreshAfter) }
+		if let country = place.countryCode, Self.isCountryCode(country),
+		   let calendar = holidayCalendar(for: place) {
+			if holidayRequestID == nil { dates.append(holidayRetryAfter) }
+			if let midnight = calendar.dateInterval(of: .day, for: Date())?.end { dates.append(midnight) }
+		}
+		return dates.min()
+	}
 
 	private init() {
 		let defaults = UserDefaults.standard
@@ -121,11 +134,7 @@ private final class WeatherModel {
 
 	private func refreshHoliday() {
 		guard let place = state.place, let country = place.countryCode,
-			  country.utf8.count == 2, country.utf8.allSatisfy({ (65...90).contains($0) }),
-			  let timezone = state.observation?.timezone ?? place.timezone,
-			  let zone = TimeZone(identifier: timezone) else { return }
-		var calendar = Calendar(identifier: .gregorian)
-		calendar.timeZone = zone
+			  Self.isCountryCode(country), let calendar = holidayCalendar(for: place) else { return }
 		let today = calendar.dateComponents([.year, .month, .day], from: Date())
 		guard let year = today.year, let month = today.month, let day = today.day else { return }
 		let key = "\(country)-\(year)"
@@ -159,42 +168,80 @@ private final class WeatherModel {
 			case .failure:
 				self.holidayRetryAfter = Date().addingTimeInterval(60 * 60)
 			}
+			self.refreshDatesChanged.send()
 		}
+	}
+
+	private static func isCountryCode(_ code: String) -> Bool {
+		code.utf8.count == 2 && code.utf8.allSatisfy { (65...90).contains($0) }
+	}
+
+	private func holidayCalendar(for place: WeatherPlace) -> Calendar? {
+		guard let timezone = state.observation?.timezone ?? place.timezone,
+			  let zone = TimeZone(identifier: timezone) else { return nil }
+		var calendar = Calendar(identifier: .gregorian)
+		calendar.timeZone = zone
+		return calendar
 	}
 }
 
 private final class WeatherButtonController: NSViewController {
 
 	private let model = WeatherModel.shared
-	private var subscription: AnyCancellable?
+	private var subscriptions = Set<AnyCancellable>()
 	private var refreshTimer: Timer?
 	private lazy var button = WeatherBadgeButton(target: self, action: #selector(openSettings))
 
 	override func loadView() {
 		view = button
-		subscription = model.$state.sink { [weak self] state in self?.render(state) }
+		render(model.state)
 	}
 
 	override func viewWillAppear() {
 		super.viewWillAppear()
 		button.setTickerVisible(true)
-		model.refresh()
-		refreshTimer?.invalidate()
-		let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in self?.model.refresh() }
-		timer.tolerance = 10
-		RunLoop.main.add(timer, forMode: .common)
-		refreshTimer = timer
+		subscriptions.removeAll()
+		model.$state
+			.receive(on: RunLoop.main)
+			.sink { [weak self] state in
+				self?.render(state)
+				self?.scheduleRefresh()
+			}
+			.store(in: &subscriptions)
+		model.refreshDatesChanged.sink { [weak self] in self?.scheduleRefresh() }.store(in: &subscriptions)
+		Publishers.Merge(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification),
+			NotificationCenter.default.publisher(for: .NSSystemClockDidChange))
+			.receive(on: RunLoop.main)
+			.sink { [weak self] _ in self?.refresh() }
+			.store(in: &subscriptions)
+		refresh()
 	}
 
 	override func viewWillDisappear() {
 		super.viewWillDisappear()
 		button.setTickerVisible(false)
+		subscriptions.removeAll()
 		refreshTimer?.invalidate()
 		refreshTimer = nil
 	}
 
 	deinit {
 		refreshTimer?.invalidate()
+	}
+
+	private func refresh() {
+		model.refresh()
+		scheduleRefresh()
+	}
+
+	private func scheduleRefresh() {
+		refreshTimer?.invalidate()
+		refreshTimer = nil
+		guard !subscriptions.isEmpty, let date = model.nextRefreshDate else { return }
+		let timer = Timer(fire: date, interval: 0, repeats: false) { [weak self] _ in self?.refresh() }
+		timer.tolerance = 10
+		RunLoop.main.add(timer, forMode: .common)
+		refreshTimer = timer
 	}
 
 	@objc private func openSettings() {
@@ -396,7 +443,7 @@ private final class WeatherBadgeButton: NSButton {
 	private func scrollDetail(distance: CGFloat) {
 		let start = ProcessInfo.processInfo.systemUptime
 		let duration = min(16, max(0.5, TimeInterval(distance) / 25))
-		let timer = Timer(timeInterval: 0.05, repeats: true) { [weak self] timer in
+		let timer = Timer(timeInterval: 1.0 / 12, repeats: true) { [weak self] timer in
 			guard let self = self, self.tickerVisible else { timer.invalidate(); return }
 			let fraction = min(1, (ProcessInfo.processInfo.systemUptime - start) / duration)
 			self.tickerOffset = distance * CGFloat(fraction)

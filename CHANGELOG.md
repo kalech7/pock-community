@@ -9,6 +9,12 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-15 Community
+
+- Added an optional Next Meeting reminder with a compact join action five minutes before an event. Configure it in Widgets Manager.
+- Weather schedules updates when data is due, pauses its display updates while hidden, and draws fewer frames while scrolling long details.
+- Meeting reminders skip unnecessary work when disabled and query only the calendar window needed for the next reminder.
+
 ## 0.10.1-14 Community
 
 - Fixed an unexpected quit during Touch Bar dimming in Release builds.
