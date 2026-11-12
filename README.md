@@ -29,6 +29,12 @@ On first launch, Pock Community shows an onboarding flow that:
 
 If macOS blocks the app because the release is unsigned or not notarized, open **System Settings > Privacy & Security** and allow the app manually. Future notarized releases should reduce this warning.
 
+## Touch Bar Weather and AI Activity
+
+- **Weather** shows the city, temperature and current condition. Its second line cycles through wind, humidity, feels-like temperature and applicable public holidays when available. Tap it to choose a city and °C or °F. Add it to a custom layout through **Customize Pock…**. Forecasts use [Open-Meteo](https://open-meteo.com/) and public holidays use [Nager.Date](https://nagerholidays.com/en/api).
+- **AI Activity** opens from the existing Touch Bar switch and shows sessions that are currently working. Tap a session to open it if its provider supplies a destination. The left handle returns to your widgets and the right handle shows the native Touch Bar. From the native bar, tap the Pock handle when available or press **Control–Option–Command–P** to return. The **Show Touch Bar switch** setting controls the handle.
+- The installer sets up Codex hooks automatically. Approve the Pock Community entries in Codex to start receiving activity. See [provider integrations](docs/agent-activity.md) for other tools.
+
 ## Local Install From Source
 
 For a local community build:

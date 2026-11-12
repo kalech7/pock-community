@@ -23,6 +23,9 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	private(set) var cachedItems: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
 	private var cachedMouseDelegates: [PKScreenEdgeMouseDelegate] = []
 	private var mouseMoveThrottler = MouseMoveThrottler(maximumFrequency: 30, locationTolerance: 0.75)
+	private lazy var activityView = AgentActivityView()
+	private lazy var activityTouchBar = makeAgentActivityTouchBar()
+	private var isShowingAgentActivity = false
 	
 	private var currentItems: [NSTouchBarItem.Identifier] {
 		return touchBar?.itemIdentifiers ?? []
@@ -32,6 +35,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	}
 	private var defaultItemIdentifiers: [NSTouchBarItem.Identifier] {
 		var identifiers = Array(widgets.keys)
+		identifiers.append(WeatherTouchBarItem.itemIdentifier)
 		if nativeTouchBarToggleEnabled {
 			identifiers.append(Self.nativeTouchBarToggleIdentifier)
 		}
@@ -50,6 +54,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	internal var allowedCustomizationIdentifiers: [NSTouchBarItem.Identifier] {
 		var identifiers = Array(widgets.keys)
+		identifiers.append(WeatherTouchBarItem.itemIdentifier)
 		if nativeTouchBarToggleEnabled {
 			identifiers.append(Self.nativeTouchBarToggleIdentifier)
 		}
@@ -98,6 +103,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	deinit {
 		Roger.info("Deinit")
+		dismissAgentActivity()
 		flushWidgetItems()
 		emptyTouchBarController = nil
 		touchBar = nil
@@ -124,9 +130,11 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			return
 		}
 		let configuration = presentationConfiguration
-		TouchBarHelper.presentOnTop(touchBar, placement: configuration.placement)
+		TouchBarHelper.presentOnTop(isShowingAgentActivity ? activityTouchBar : touchBar, placement: configuration.placement)
 		TouchBarHelper.setPresentationMode(to: configuration.mode)
-		checkForBlankTouchBar()
+		if !isShowingAgentActivity {
+			checkForBlankTouchBar()
+		}
 	}
 
 	internal func suspendPresentation() {
@@ -139,7 +147,9 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		edgeController?.tearDown(invalidate: true)
 		edgeController = nil
 		isVisible = false
-		TouchBarHelper.dismissFromTop(touchBar)
+		if !dismissAgentActivity() {
+			TouchBarHelper.dismissFromTop(touchBar)
+		}
 	}
 
 	internal func resumePresentation() {
@@ -162,17 +172,28 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	override func minimize() {
 		cancelBlankTouchBarCheck()
 		emptyTouchBarController?.dismiss()
-		super.minimize()
+		if dismissAgentActivity() {
+			isVisible = false
+			touchBar = nil
+		} else {
+			super.minimize()
+		}
 	}
 	
 	override func dismiss() {
 		cancelBlankTouchBarCheck()
+		let dismissedActivity = dismissAgentActivity()
 		emptyTouchBarController?.dismiss()
 		guard isVisible else {
 			return
 		}
 		TouchBarHelper.setPresentationMode(to: Preferences[.userDefinedPresentationMode] as PresentationMode)
-		super.dismiss()
+		if dismissedActivity {
+			isVisible = false
+			touchBar = nil
+		} else {
+			super.dismiss()
+		}
 	}
 	
 	private func flushWidgetItems() {
@@ -191,9 +212,8 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	override func makeTouchBar() -> NSTouchBar? {
 		let touchBar = NSTouchBar()
 		touchBar.delegate = self
-		touchBar.customizationIdentifier = .pockTouchBarController
+		// The separate customization palette saves its layout in Preferences.
 		touchBar.defaultItemIdentifiers = preferredItemIdentifiers
-		touchBar.customizationAllowedItemIdentifiers = allowedCustomizationIdentifiers
 		for key in widgets.keys {
 			Roger.info("[\(key.rawValue)] - Allowed for customization")
 		}
@@ -210,8 +230,12 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			guard nativeTouchBarToggleEnabled else {
 				return nil
 			}
-			Roger.info("[\(identifier.rawValue)][item] - initializes")
-			let item = makeNativeTouchBarToggleItem()
+			let item = makeSwitchItem(interactive: true)
+			cachedItems[identifier] = item
+			return item
+		}
+		if identifier == WeatherTouchBarItem.itemIdentifier {
+			let item = WeatherTouchBarItem()
 			cachedItems[identifier] = item
 			return item
 		}
@@ -228,17 +252,79 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		return item
 	}
 
-	internal func makeNativeTouchBarToggleItem() -> NSTouchBarItem {
+	internal func makeSwitchItem(interactive: Bool) -> NSTouchBarItem {
 		let item = NSCustomTouchBarItem(identifier: Self.nativeTouchBarToggleIdentifier)
 		item.view = TouchBarSwapHandleView(
-			width: 22,
 			direction: .toNative,
-			orientation: .vertical,
+			label: "touchbar.show-ai-activity".localized,
+			target: interactive ? self : nil,
+			action: interactive ? #selector(showAgentActivity) : nil
+		)
+		item.customizationLabel = "touchbar.switch".localized
+		return item
+	}
+
+	@discardableResult
+	private func dismissAgentActivity() -> Bool {
+		guard isShowingAgentActivity else { return false }
+		isShowingAgentActivity = false
+		TouchBarHelper.dismissFromTop(activityTouchBar)
+		activityView.stopRefreshing()
+		return true
+	}
+
+	@objc private func showAgentActivity() {
+		guard isVisible, !AppController.shared.isLocked, !isShowingAgentActivity else { return }
+		cancelBlankTouchBarCheck()
+		edgeController?.tearDown(invalidate: true)
+		edgeController = nil
+		isShowingAgentActivity = true
+		TouchBarHelper.dismissFromTop(touchBar)
+		restorePresentation()
+		activityView.startRefreshing()
+	}
+
+	private func makeAgentActivityTouchBar() -> NSTouchBar {
+		let back = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity.back"))
+		back.view = TouchBarSwapHandleView(
+			direction: .toPock,
+			label: "menu.show-pock".localized,
+			target: self,
+			action: #selector(returnFromAgentActivity)
+		)
+		let activity = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity"))
+		activity.view = activityView
+		let native = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity.native"))
+		native.view = TouchBarSwapHandleView(
+			direction: .toNative,
+			label: "menu.show-native-touchbar".localized,
 			target: AppController.shared,
 			action: #selector(AppController.showNativeTouchBarFromHandle)
 		)
-		item.customizationLabel = "Native Touch Bar"
-		return item
+		let bar = NSTouchBar()
+		bar.templateItems = [back, activity, native]
+		bar.defaultItemIdentifiers = [back.identifier, .flexibleSpace, activity.identifier, .flexibleSpace, native.identifier]
+		bar.principalItemIdentifier = activity.identifier
+		return bar
+	}
+
+	@objc private func returnFromAgentActivity() {
+		guard isShowingAgentActivity else { return }
+		showWidgets()
+	}
+
+	@objc internal func showWidgets() {
+		guard isShowingAgentActivity else {
+			restorePresentation()
+			return
+		}
+		guard !AppController.shared.isLocked else { return }
+		dismissAgentActivity()
+		restorePresentation()
+		async(after: 0.05) { [weak self] in
+			guard let self = self, self.isVisible, !self.isShowingAgentActivity else { return }
+			self.reloadScreenEdgeController()
+		}
 	}
 	
 	// MARK: Blank Touch Bar
@@ -257,12 +343,10 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			guard self.isVisible, self.blankTouchBarCheckGeneration == generation else {
 				return
 			}
-			if self.widgets.isEmpty {
+			if self.currentItems.isEmpty && self.widgets.isEmpty {
 				self.emptyTouchBarController = AppController.shared.showEmptyTouchBarController(with: .installDefault)
-			} else {
-				if self.currentItems.isEmpty {
-					self.emptyTouchBarController = AppController.shared.showEmptyTouchBarController(with: .empty)
-				}
+			} else if self.currentItems.isEmpty {
+				self.emptyTouchBarController = AppController.shared.showEmptyTouchBarController(with: .empty)
 			}
 		}
 	}
@@ -279,7 +363,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	// MARK: Mouse Overrides
 	override func reloadScreenEdgeController() {
-		if Preferences[.mouseSupportEnabled], let parentView = parentView {
+		if !isShowingAgentActivity, Preferences[.mouseSupportEnabled], let parentView = parentView {
 			let color: NSColor = Preferences[.showTrackingArea] ? .systemBlue : .clear
 			self.edgeController = PKScreenEdgeController(mouseDelegate: self, parentView: parentView, barColor: color)
 		} else {
@@ -382,43 +466,36 @@ internal final class TouchBarSwapHandleView: NSButton {
 		case toNative
 		case toPock
 	}
-	internal enum Orientation {
-		case horizontal
-		case vertical
-	}
-
 	private let direction: Direction
-	private let orientation: Orientation
 	private let preferredWidth: CGFloat
-	private var isCompact: Bool {
-		return orientation == .horizontal && preferredWidth <= 24
-	}
 
 	override var intrinsicContentSize: NSSize {
 		return NSSize(width: preferredWidth, height: 30)
 	}
 
 	internal init(
-		width: CGFloat,
+		width: CGFloat = 26,
 		direction: Direction,
-		orientation: Orientation = .horizontal,
+		label: String? = nil,
 		target: AnyObject?,
 		action: Selector?
 	) {
 		self.preferredWidth = width
 		self.direction = direction
-		self.orientation = orientation
 		super.init(frame: NSRect(x: 0, y: 0, width: width, height: 30))
 		self.target = target
 		self.action = action
 		setup()
+		if let label = label {
+			toolTip = label
+			setAccessibilityLabel(label)
+		}
 		addDirectTouchGesture()
 	}
 
 	required init?(coder: NSCoder) {
-		self.preferredWidth = 34
+		self.preferredWidth = 26
 		self.direction = .toNative
-		self.orientation = .horizontal
 		super.init(coder: coder)
 		setup()
 	}
@@ -461,98 +538,25 @@ internal final class TouchBarSwapHandleView: NSButton {
 	}
 
 	override func draw(_ dirtyRect: NSRect) {
-		if orientation == .vertical {
-			drawVerticalHandle()
-			return
-		}
-		drawHorizontalHandle()
-	}
-
-	private func drawHorizontalHandle() {
-		let capsule = bounds.insetBy(dx: isCompact ? 2 : 3, dy: isCompact ? 8 : 7)
+		let capsule = NSRect(x: bounds.midX - 11, y: bounds.midY - 8, width: 22, height: 16)
 		let isPressed = cell?.isHighlighted == true
-		let capsulePath = NSBezierPath(roundedRect: capsule, xRadius: capsule.height / 2, yRadius: capsule.height / 2)
-		NSColor.white.withAlphaComponent(isPressed ? 0.2 : 0.12).setFill()
-		capsulePath.fill()
-		NSColor.white.withAlphaComponent(isPressed ? 0.34 : 0.24).setStroke()
-		capsulePath.lineWidth = 0.75
-		capsulePath.stroke()
-
-		guard isCompact == false else {
-			drawHorizontalChevron(in: capsule, isPressed: isPressed)
-			return
-		}
-		drawDot(in: capsule, isPressed: isPressed)
-		drawHorizontalChevron(in: capsule, isPressed: isPressed)
-	}
-
-	private func drawVerticalHandle() {
-		let capsule = bounds.insetBy(dx: 5, dy: 3)
-		let isPressed = cell?.isHighlighted == true
-		let capsulePath = NSBezierPath(roundedRect: capsule, xRadius: capsule.width / 2, yRadius: capsule.width / 2)
-		NSColor.white.withAlphaComponent(isPressed ? 0.2 : 0.12).setFill()
-		capsulePath.fill()
-		NSColor.white.withAlphaComponent(isPressed ? 0.34 : 0.24).setStroke()
-		capsulePath.lineWidth = 0.75
-		capsulePath.stroke()
-
-		drawVerticalDot(in: capsule, isPressed: isPressed)
-		drawVerticalChevron(in: capsule, isPressed: isPressed)
-	}
-
-	private func drawDot(in capsule: NSRect, isPressed: Bool) {
-		let diameter: CGFloat = isPressed ? 7 : 6
-		let centerX = direction == .toNative ? capsule.minX + 7 : capsule.maxX - 7
-		let dot = NSRect(
-			x: centerX - diameter / 2,
-			y: capsule.midY - diameter / 2,
-			width: diameter,
-			height: diameter
-		)
-		NSColor.controlAccentColor.withAlphaComponent(isPressed ? 0.95 : 0.8).setFill()
-		NSBezierPath(ovalIn: dot).fill()
-	}
-
-	private func drawVerticalDot(in capsule: NSRect, isPressed: Bool) {
-		let diameter: CGFloat = isPressed ? 6 : 5
-		let centerY = direction == .toNative ? capsule.maxY - 7 : capsule.minY + 7
-		let dot = NSRect(
-			x: capsule.midX - diameter / 2,
-			y: centerY - diameter / 2,
-			width: diameter,
-			height: diameter
-		)
-		NSColor.controlAccentColor.withAlphaComponent(isPressed ? 0.95 : 0.8).setFill()
-		NSBezierPath(ovalIn: dot).fill()
-	}
-
-	private func drawHorizontalChevron(in capsule: NSRect, isPressed: Bool) {
-		let centerX = direction == .toNative ? capsule.maxX - 7 : capsule.minX + 7
-		let centerY = capsule.midY
+		NSColor.white.withAlphaComponent(isPressed ? 0.23 : 0.14).setFill()
+		NSBezierPath(roundedRect: capsule, xRadius: 6, yRadius: 6).fill()
 		let directionMultiplier: CGFloat = direction == .toNative ? 1 : -1
+		let dotCenter = capsule.midX - 4 * directionMultiplier
+		NSColor.controlAccentColor.setFill()
+		NSBezierPath(ovalIn: NSRect(x: dotCenter - 2, y: capsule.midY - 2, width: 4, height: 4)).fill()
+
+		let centerX = capsule.midX + 4 * directionMultiplier
+		let centerY = capsule.midY
 		let path = NSBezierPath()
 		path.move(to: NSPoint(x: centerX - 2 * directionMultiplier, y: centerY + 3))
 		path.line(to: NSPoint(x: centerX + 2 * directionMultiplier, y: centerY))
 		path.line(to: NSPoint(x: centerX - 2 * directionMultiplier, y: centerY - 3))
 		path.lineCapStyle = .round
 		path.lineJoinStyle = .round
-		path.lineWidth = 1.2
-		NSColor.white.withAlphaComponent(isPressed ? 0.72 : 0.56).setStroke()
-		path.stroke()
-	}
-
-	private func drawVerticalChevron(in capsule: NSRect, isPressed: Bool) {
-		let centerX = capsule.midX
-		let centerY = direction == .toNative ? capsule.minY + 7 : capsule.maxY - 7
-		let directionMultiplier: CGFloat = direction == .toNative ? -1 : 1
-		let path = NSBezierPath()
-		path.move(to: NSPoint(x: centerX - 3, y: centerY - 2 * directionMultiplier))
-		path.line(to: NSPoint(x: centerX, y: centerY + 2 * directionMultiplier))
-		path.line(to: NSPoint(x: centerX + 3, y: centerY - 2 * directionMultiplier))
-		path.lineCapStyle = .round
-		path.lineJoinStyle = .round
-		path.lineWidth = 1.2
-		NSColor.white.withAlphaComponent(isPressed ? 0.72 : 0.56).setStroke()
+		path.lineWidth = 1.3
+		NSColor.white.withAlphaComponent(isPressed ? 1 : 0.82).setStroke()
 		path.stroke()
 	}
 }

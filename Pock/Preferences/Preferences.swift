@@ -33,6 +33,14 @@ internal enum LayoutStyle: String {
 }
 
 internal struct Preferences {
+	static func addWidgetToSavedLayout(_ identifier: String) {
+		var identifiers: [String] = self[.pockTouchBarItemIdentifiers]
+		guard !identifiers.isEmpty, !identifiers.contains(identifier) else { return }
+		let switchIdentifier = PockTouchBarController.nativeTouchBarToggleIdentifier.rawValue
+		identifiers.insert(identifier, at: identifiers.firstIndex(of: switchIdentifier) ?? identifiers.endIndex)
+		self[.pockTouchBarItemIdentifiers] = identifiers
+	}
+
 	internal enum Keys: String {
 		case allowBlankTouchBar
 		case launchAtLogin

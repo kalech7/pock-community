@@ -13,13 +13,13 @@ This document describes how Pock Community releases are prepared. Pock Community
 Use the app version from the Xcode project. The current project version is:
 
 - Marketing version: `0.10.1`
-- Build version: `11`
-- Release label: `0.10.1-11`
+- Build version: `12`
+- Release label: `0.10.1-12`
 
 Use tags such as:
 
 ```text
-v0.10.1-11
+v0.10.1-12
 ```
 
 ## Pre-Release Checklist
@@ -58,7 +58,10 @@ After a successful Release build:
 ```sh
 APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/Pock-fgcdlnkhwvjnuwbrhagpqbmhbpcs/Build/Products/Release/Pock.app"
 ./scripts/sign_app.sh "$APP_PATH"
-(cd "$(dirname "$APP_PATH")" && zip -qry -X --symlinks "Pock-Community-0.10.1-11.zip" "Pock.app")
+RELEASE_DIR="$(mktemp -d)"
+ditto "$APP_PATH" "$RELEASE_DIR/Pock.app"
+cp LICENSE.md "$RELEASE_DIR/LICENSE.md"
+(cd "$RELEASE_DIR" && zip -qry -X --symlinks "Pock-Community-0.10.1-12.zip" Pock.app LICENSE.md)
 ```
 
 If the DerivedData path differs, locate the newest Release app:
@@ -70,10 +73,10 @@ find "$HOME/Library/Developer/Xcode/DerivedData" -path "*/Build/Products/Release
 ## Create A GitHub Release
 
 ```sh
-git tag v0.10.1-11
-git push origin v0.10.1-11
-gh release create v0.10.1-11 Pock-Community-0.10.1-11.zip \
-  --title "Pock Community 0.10.1-11" \
+git tag v0.10.1-12
+git push origin v0.10.1-12
+gh release create v0.10.1-12 "$RELEASE_DIR/Pock-Community-0.10.1-12.zip" \
+  --title "Pock Community 0.10.1-12" \
   --notes-file .github/RELEASE_TEMPLATE.md
 ```
 
@@ -112,11 +115,11 @@ Basic flow:
 
 ```sh
 codesign --force --deep --options runtime --sign "Developer ID Application: NAME (TEAMID)" /Applications/Pock.app
-(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-11.zip Pock.app)
-xcrun notarytool submit Pock-Community-0.10.1-11.zip --keychain-profile "PockCommunityNotary" --wait
+(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-12.zip Pock.app)
+xcrun notarytool submit Pock-Community-0.10.1-12.zip --keychain-profile "PockCommunityNotary" --wait
 xcrun stapler staple /Applications/Pock.app
 xcrun stapler validate /Applications/Pock.app
-(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-11-notarized.zip Pock.app)
+(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-12-notarized.zip Pock.app)
 ```
 
 Do not commit certificates, passwords, provisioning profiles, or signing identities.

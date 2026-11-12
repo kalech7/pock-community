@@ -21,7 +21,10 @@
 "menu.about" = "Sobre Pock";
 "menu.preferences" = "Preferências…";
 "menu.show-pock" = "Mostrar Pock";
-"menu.native-touchbar-switch" = "Mostrar alternador nativo";
+"menu.show-native-touchbar" = "Mostrar Touch Bar do macOS";
+"menu.native-touchbar-switch" = "Mostrar alternador da Touch Bar";
+"touchbar.switch" = "Alternador da Touch Bar";
+"touchbar.show-ai-activity" = "Mostrar atividade de IA";
 // Widgets
 "menu.widgets" = "Widgets";
 "menu.widgets.manage-widgets" = "Gerir widgets…";

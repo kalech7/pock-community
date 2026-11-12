@@ -6,11 +6,13 @@
 //
 
 import CoreFoundation
+import Darwin
 
 private let kPresentationModeGlobal  = "PresentationModeGlobal"   as CFString
 private let kTouchBarAgentIdentifier = "com.apple.touchbar.agent" as CFString
 private var isPockDimRequestInProgress = false
 private var closeButtonHideGeneration = 0
+private var presentedPockBars = Set<ObjectIdentifier>()
 
 private class CommandLineHelper {
 	@discardableResult
@@ -70,6 +72,28 @@ public enum PresentationMode: String, CaseIterable {
 public class TouchBarHelper {
 
 	// MARK: Pock internal's helpers
+	private static let applySystemPresentationMode: ((CFString, Bool) -> Bool)? = {
+		// The system setter updates the preference and tells TouchBarServer to apply it.
+		// Keep the preference-based fallback for versions without these symbols.
+		guard let framework = dlopen(nil, RTLD_LAZY),
+			  let lookup = dlsym(framework, "_DFRPresentationModeFromKey"),
+			  let setter = dlsym(framework, "DFRPresentationModeSetDefault") else {
+			return nil
+		}
+		let modeForKey = unsafeBitCast(lookup, to: (@convention(c) (CFString, Int64) -> Int64).self)
+		let setDefaultMode = unsafeBitCast(setter, to: (@convention(c) (Int64) -> Void).self)
+		let currentMode = dlsym(framework, "DFRPresentationModeGetCurrent").map {
+			unsafeBitCast($0, to: (@convention(c) () -> Int64).self)
+		}
+		return { key, preferenceChanged in
+			let requestedMode = modeForKey(key, -1)
+			guard requestedMode >= 0 else { return false }
+			// The saved mode can match while TouchBarServer is still using a different mode.
+			guard preferenceChanged || currentMode.map({ $0() != requestedMode }) == true else { return false }
+			setDefaultMode(requestedMode)
+			return true
+		}
+	}()
 
 	public static var isSystemControlStripVisible: Bool {
 		return TouchBarHelper.currentPresentationMode.hasControlStrip
@@ -85,11 +109,12 @@ public class TouchBarHelper {
 
 	@discardableResult
 	internal static func setPresentationMode(to mode: PresentationMode) -> Bool {
-		guard currentPresentationMode != mode else {
-			Roger.debug("Touch Bar Presentation mode already setted to: \(mode)")
-			return false
-		}
 		let currentMode = currentPresentationMode
+		if let applySystemPresentationMode = applySystemPresentationMode {
+			guard applySystemPresentationMode(mode.rawValue as CFString, currentMode != mode) else { return false }
+			return CFPreferencesAppSynchronize(kTouchBarAgentIdentifier)
+		}
+		guard currentMode != mode else { return false }
 		CFPreferencesSetAppValue(kPresentationModeGlobal, mode.rawValue as CFString, kTouchBarAgentIdentifier)
 		let result = CFPreferencesAppSynchronize(kTouchBarAgentIdentifier)
 		if result {
@@ -190,6 +215,7 @@ public class TouchBarHelper {
 		guard let touchBar = touchBar else {
 			return
 		}
+		presentedPockBars.insert(ObjectIdentifier(touchBar))
 		DFRSystemModalShowsCloseBoxWhenFrontMost(false)
 		if #available (macOS 10.14, *) {
 			NSTouchBar.presentSystemModalTouchBar(touchBar, placement: placement, systemTrayItemIdentifier: nil)
@@ -204,6 +230,7 @@ public class TouchBarHelper {
 			restoreCloseButtonIfNeeded()
 			return
 		}
+		presentedPockBars.remove(ObjectIdentifier(touchBar))
 		if #available (macOS 10.14, *) {
 			NSTouchBar.dismissSystemModalTouchBar(touchBar)
 		} else {
@@ -217,6 +244,7 @@ public class TouchBarHelper {
 			restoreCloseButtonIfNeeded()
 			return
 		}
+		presentedPockBars.remove(ObjectIdentifier(touchBar))
 		if #available (macOS 10.14, *) {
 			NSTouchBar.minimizeSystemModalTouchBar(touchBar)
 		} else {
@@ -242,6 +270,9 @@ extension NSFunctionRow {
 	@objc static func s_markActiveFunctionRowsAsDimmed(_ dimmed: Bool) {
 		Roger.debug("[Pock]: Swizzled method: `NSFunctionRow.markActiveFunctionRowsAsDimmed` - [dimmed: \(dimmed)]")
 		guard isPockDimRequestInProgress else {
+			if presentedPockBars.isEmpty {
+				s_markActiveFunctionRowsAsDimmed(dimmed)
+			}
 			return
 		}
 		if dimmed {
@@ -267,8 +298,11 @@ extension NSFunctionRow {
 	@objc func s_escapeKeyPaddingForCloseButton(_ isForCloseButton: Bool) -> Double {
 		let original = self.s_escapeKeyPaddingForCloseButton(isForCloseButton)
 		Roger.debug("[Pock]: Swizzled method: `_NSFunctionRow.escapeKeyPaddingForCloseButton` - [padding: \(original), isForCloseButton: \(isForCloseButton)]")
+		guard !presentedPockBars.isEmpty else { return original }
 		async {
-			TouchBarHelper.hideCloseButtonIfNeeded()
+			if !presentedPockBars.isEmpty {
+				TouchBarHelper.hideCloseButtonIfNeeded()
+			}
 		}
 		return isForCloseButton ? 0 : original
 	}

@@ -73,10 +73,7 @@ class WidgetsManagerViewController: NSViewController {
 		super.viewDidLoad()
 		self.tableView.register(NSNib(nibNamed: "PKWidgetCellView", bundle: .main), forIdentifier: CellIdentifiers.widgetCell)
 		self.configureUIElements()
-		self.selectedWidget = widgets.first
-		if AppController.shared.isVisible == false {
-			AppController.shared.reload(shouldFetchLatestVersions: false)
-		}
+		AppController.shared.reloadWidgets { [weak self] in self?.reloadWidgetList() }
 		NotificationCenter.default.addObserver(self, selector: #selector(reload), name: .didLoadWidgets, object: nil)
 	}
 	
@@ -112,13 +109,20 @@ extension WidgetsManagerViewController {
 	
 	@objc private func reload() {
 		async { [weak self] in
-            if let selectedIndex = self?.tableView.selectedRowIndexes {
-                self?.tableView.reloadData()
-                self?.tableView.selectRowIndexes(selectedIndex, byExtendingSelection: false)
-            } else {
-                self?.tableView.reloadData()
-            }
+			self?.reloadWidgetList()
 		}
+	}
+
+	private func reloadWidgetList() {
+		let previouslySelected = selectedWidget?.bundleIdentifier
+		let currentWidgets = widgets
+		tableView.reloadData()
+		guard let row = currentWidgets.firstIndex(where: { $0.bundleIdentifier == previouslySelected }) ?? currentWidgets.indices.first else {
+			selectedWidget = nil
+			return
+		}
+		tableView.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+		selectedWidget = currentWidgets[row]
 	}
 	
 	private func updatePreferredContentSize() {
@@ -283,7 +287,9 @@ extension WidgetsManagerViewController: NSTableViewDelegate {
 	}
 	
 	func tableViewSelectionDidChange(_ notification: Notification) {
-		self.selectedWidget = tableView.selectedRow > -1 ? widgets[tableView.selectedRow] : nil
+		let currentWidgets = widgets
+		let row = tableView.selectedRow
+		selectedWidget = currentWidgets.indices.contains(row) ? currentWidgets[row] : nil
 	}
 	
 }

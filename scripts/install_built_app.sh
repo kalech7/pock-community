@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Older per-user Xcode schemes may still call the installer as a post-build action.
+if [[ -n "${XCODE_PRODUCT_BUILD_VERSION:-}" ]]; then
+  echo "Use scripts/install_app.sh to install Pock."
+  exit 0
+fi
+
 APP_PATH="${1:-}"
 DESTINATION="${2:-/Applications/Pock.app}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SIGNING_IDENTITY="${SIGNING_IDENTITY:-Pock Local Code Signing}"
 EXPECTED_BUNDLE_IDENTIFIER="io.github.kalech7.pock-community"
+
+if [[ "$(basename "$DESTINATION")" != *.app || -L "$DESTINATION" ]]; then
+  echo "Expected an application bundle destination: $DESTINATION" >&2
+  exit 65
+fi
 
 if [[ -z "$APP_PATH" || ! -d "$APP_PATH" ]]; then
   echo "Built app not found: ${APP_PATH:-<empty>}" >&2
@@ -44,17 +55,30 @@ if [[ -d "$DESTINATION" ]]; then
   fi
 fi
 
-STAGED_DESTINATION="${DESTINATION}.installing.$$"
-trap 'rm -rf "$STAGED_DESTINATION"' EXIT
-rm -rf "$STAGED_DESTINATION"
+INSTALL_DIR="$(mktemp -d "$(dirname "$DESTINATION")/.pock-install.XXXXXX")"
+STAGED_DESTINATION="$INSTALL_DIR/Pock.app"
+PREVIOUS_DESTINATION="$INSTALL_DIR/previous.app"
+cleanup() {
+  if [[ -d "$PREVIOUS_DESTINATION" && ! -e "$DESTINATION" ]]; then
+    mv "$PREVIOUS_DESTINATION" "$DESTINATION" || return
+  fi
+  rm -rf "$INSTALL_DIR"
+}
+trap cleanup EXIT
 ditto "$APP_PATH" "$STAGED_DESTINATION"
 codesign --verify --deep --strict --verbose=2 "$STAGED_DESTINATION"
 
 pkill -x Pock 2>/dev/null || true
 pkill -f "mediaremote-adapter\\.pl" 2>/dev/null || true
 
-rm -rf "$DESTINATION"
+if [[ -d "$DESTINATION" ]]; then
+  mv "$DESTINATION" "$PREVIOUS_DESTINATION"
+fi
 mv "$STAGED_DESTINATION" "$DESTINATION"
-trap - EXIT
 
 open "$DESTINATION"
+
+HOOK_SCRIPT="$DESTINATION/Contents/Resources/pock-agent-activity.rb"
+if [[ -f "$HOOK_SCRIPT" ]]; then
+  /usr/bin/env -u RUBYOPT -u RUBYLIB /usr/bin/ruby --disable=gems "$HOOK_SCRIPT" codex --install
+fi

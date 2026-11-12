@@ -121,6 +121,9 @@ internal final class WidgetsInstaller: NSDocument {
 				try manager.copyItem(at: fromLocation, to: toLocation)
 			}
 			try repairFrameworkSymlinks(in: toLocation)
+			if !WidgetsLoader.installedWidgets.contains(widget) {
+				Preferences.addWidgetToSavedLayout(widget.bundleIdentifier)
+			}
 			completion(widget, nil)
 		} catch {
 			Roger.error(error)

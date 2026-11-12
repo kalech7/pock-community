@@ -186,6 +186,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 		)
 		showPockMenuItem.keyEquivalentModifierMask = [.control, .option, .command]
 		mainBarMenu.addItem(showPockMenuItem)
+		mainBarMenu.addItem(NSMenuItemCustomView.new(
+			title: "menu.show-native-touchbar".localized,
+			target: self,
+			selector: #selector(showNativeTouchBar),
+			keyEquivalent: nil
+		))
 		nativeTouchBarToggleMenuItem = NSMenuItem(
 			title: "menu.native-touchbar-switch".localized,
 			action: #selector(toggleNativeTouchBarSwitch),
@@ -315,6 +321,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 	@objc private func showPockTouchBar() {
 		AppController.shared.showPockTouchBar()
+	}
+
+	@objc private func showNativeTouchBar() {
+		AppController.shared.showNativeTouchBar()
 	}
 
 	@objc private func toggleNativeTouchBarSwitch() {

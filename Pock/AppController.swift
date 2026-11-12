@@ -49,6 +49,7 @@ internal class AppController: NSResponder {
 	private var windowController: NSWindowController?
 	private var customizationWindowController: NSWindowController?
 	private weak var customizationHostView: TouchBarCustomizationHostView?
+	private var initialCustomizationItems: [NSTouchBarItem.Identifier]?
 
 	/// Debug console controller
 	private var debugConsoleController: NSWindowController?
@@ -364,7 +365,7 @@ internal class AppController: NSResponder {
 			return
 		}
 		guard isVisible == false else {
-			pockTouchBarController.restorePresentation()
+			pockTouchBarController.showWidgets()
 			return
 		}
 		guard navigationController?.visibleController?.isVisible != true else {
@@ -381,14 +382,15 @@ internal class AppController: NSResponder {
 		guard isLocked == false else {
 			return
 		}
+		let nativePresentationMode = Preferences[.userDefinedPresentationMode] as PresentationMode
 		guard isShowingNativeTouchBar == false else {
+			TouchBarHelper.setPresentationMode(to: nativePresentationMode)
+			refreshNativeTouchBarSwitchRepeatedly()
 			return
 		}
 		touchBarRestoreScheduler.cancel()
 		pendingTouchBarReload?.cancel()
 		pendingTouchBarReload = nil
-		let nativePresentationMode = Preferences[.userDefinedPresentationMode] as PresentationMode
-		let presentationModeNeedsChange = TouchBarHelper.currentPresentationMode != nativePresentationMode
 		if let controller = pockTouchBarController,
 		   navigationController?.visibleController === controller {
 			controller.suspendPresentation()
@@ -397,13 +399,7 @@ internal class AppController: NSResponder {
 			tearDownTouchBar()
 		}
 		isShowingNativeTouchBar = true
-		if presentationModeNeedsChange {
-			if TouchBarHelper.setPresentationMode(to: nativePresentationMode) == false {
-				TouchBarHelper.reloadTouchBarAgent()
-			}
-		} else {
-			TouchBarHelper.reloadTouchBarAgent()
-		}
+		TouchBarHelper.setPresentationMode(to: nativePresentationMode)
 		refreshNativeTouchBarSwitchRepeatedly()
 	}
 
@@ -591,7 +587,10 @@ extension AppController: NSTouchBarDelegate {
 	
 	func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
 		if identifier == PockTouchBarController.nativeTouchBarToggleIdentifier {
-			return pockTouchBarController.makeNativeTouchBarToggleItem()
+			return pockTouchBarController.makeSwitchItem(interactive: false)
+		}
+		if identifier == WeatherTouchBarItem.itemIdentifier {
+			return WeatherTouchBarItem.makeCustomizationItem()
 		}
 		let item = pockTouchBarController.cachedItems[identifier]
 			?? pockTouchBarController.touchBar?.item(forIdentifier: identifier)
@@ -627,7 +626,7 @@ extension AppController: NSTouchBarDelegate {
 			closePockCustomizationSession()
 			return
 		}
-		if let identifiers = customizationHostView?.touchBar?.itemIdentifiers {
+		if let identifiers = customizationHostView?.touchBar?.itemIdentifiers, identifiers != initialCustomizationItems {
 			controller.savePreferredItemIdentifiers(identifiers)
 		}
 		closePockCustomizationSession()
@@ -642,6 +641,7 @@ extension AppController: NSTouchBarDelegate {
 		customizationWindowController?.close()
 		customizationWindowController = nil
 		customizationHostView = nil
+		initialCustomizationItems = nil
 	}
 	
 }
@@ -675,6 +675,7 @@ extension AppController {
 		let hostView = TouchBarCustomizationHostView(frame: NSRect(x: 0, y: 0, width: 1, height: 1))
 		hostView.appController = self
 		hostView.touchBar = makeTouchBar()
+		initialCustomizationItems = hostView.touchBar?.itemIdentifiers
 
 		let window = TouchBarCustomizationWindow(
 			contentRect: NSRect(x: -10_000, y: -10_000, width: 1, height: 1),

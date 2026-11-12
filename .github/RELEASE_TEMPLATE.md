@@ -1,17 +1,17 @@
-# Pock Community 0.10.1-11
+# Pock Community 0.10.1-12
 
 Pock Community is an unofficial community-maintained fork of Pock. This release is not an official Pock release and is not endorsed by the original authors.
 
 ## Highlights
 
-- Keeps the same local signing requirement when installing over an existing Pock Community build, so already-granted Accessibility permission is preserved whenever macOS permits it.
-- Refuses an unsafe in-place replacement when its signing requirement differs from the installed app.
-- Improves switching between Pock and the native Touch Bar after lock/unlock, reload, and customization flows.
-- Avoids blank Touch Bar and nil widget-view failures during presentation changes.
+- Adds a compact weather widget with current conditions, a day and night palette, and applicable public holidays.
+- Shows running Codex, Claude Code, and Gemini CLI sessions with provider icons in AI Activity. Review the Pock Community hooks in Codex to enable its integration. See the [setup guide](https://github.com/kalech7/pock-community/blob/main/docs/agent-activity.md) for other providers.
+- Uses the same dot-and-arrow control in Pock, AI Activity, and the native Touch Bar.
+- Restores the installed widgets list in Pock's widget manager.
 
 ## Installation
 
-1. Download `Pock-Community-0.10.1-11.zip`.
+1. Download `Pock-Community-0.10.1-12.zip`.
 2. Unzip it.
 3. Move `Pock.app` to `/Applications`.
 4. Open Pock Community.
@@ -23,10 +23,10 @@ This release targets macOS 10.15 and later and is intended for MacBook models wi
 
 ## Security And Privacy
 
-This fork does not include telemetry, analytics, or tracking.
+This fork does not include telemetry, analytics, or tracking. AI Activity records are stored on your Mac. The weather widget requests forecasts and public holidays from Open-Meteo and Nager.Date.
 
 This binary is locally signed but not notarized. macOS may show a security prompt on first launch. Users may need to allow the app from **System Settings > Privacy & Security**.
 
 ## Attribution
 
-Original Pock copyright notices, contributors, and MIT license are preserved.
+Original Pock copyright notices, contributors, and MIT license are preserved. The archive includes `LICENSE.md`. Provider marks identify their respective integrations and belong to their owners.
