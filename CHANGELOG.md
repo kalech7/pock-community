@@ -9,6 +9,11 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-13 Community
+
+- Shows the built-in Weather and AI Activity entries alongside installed widgets in Widgets Manager.
+- Opens Weather settings, Pock customization, and the Touch Bar's AI Activity view directly from the manager.
+
 ## 0.10.1-12 Community
 
 - Added a compact weather widget with current conditions, day and night colors, and applicable public holidays.
