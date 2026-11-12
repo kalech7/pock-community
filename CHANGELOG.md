@@ -9,6 +9,12 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-14 Community
+
+- Fixed an unexpected quit during Touch Bar dimming in Release builds.
+- AI Activity watches for changes and checks less often when its list is empty.
+- Weather redraws only the changing detail while scrolling text.
+
 ## 0.10.1-13 Community
 
 - Shows the built-in Weather and AI Activity entries alongside installed widgets in Widgets Manager.

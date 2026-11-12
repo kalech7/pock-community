@@ -267,7 +267,8 @@ public class TouchBarHelper {
 // MARK: Swizzle - markActiveFunctionRows
 extension NSFunctionRow {
 	
-	@objc static func s_markActiveFunctionRowsAsDimmed(_ dimmed: Bool) {
+	// The call through the swapped selector must use Objective-C dispatch in Release builds.
+	@objc dynamic static func s_markActiveFunctionRowsAsDimmed(_ dimmed: Bool) {
 		Roger.debug("[Pock]: Swizzled method: `NSFunctionRow.markActiveFunctionRowsAsDimmed` - [dimmed: \(dimmed)]")
 		guard isPockDimRequestInProgress else {
 			if presentedPockBars.isEmpty {
@@ -295,7 +296,7 @@ extension NSFunctionRow {
 // MARK: Swizzle - escapeKeyPaddingForCloseButton
 extension NSFunctionRow {
 	
-	@objc func s_escapeKeyPaddingForCloseButton(_ isForCloseButton: Bool) -> Double {
+	@objc dynamic func s_escapeKeyPaddingForCloseButton(_ isForCloseButton: Bool) -> Double {
 		let original = self.s_escapeKeyPaddingForCloseButton(isForCloseButton)
 		Roger.debug("[Pock]: Swizzled method: `_NSFunctionRow.escapeKeyPaddingForCloseButton` - [padding: \(original), isForCloseButton: \(isForCloseButton)]")
 		guard !presentedPockBars.isEmpty else { return original }

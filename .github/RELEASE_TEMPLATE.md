@@ -1,16 +1,16 @@
-# Pock Community 0.10.1-13
+# Pock Community 0.10.1-14
 
 Pock Community is an unofficial community-maintained fork of Pock. This release is not an official Pock release and is not endorsed by the original authors.
 
 ## Highlights
 
-- Find **Weather** and **AI Activity** alongside your installed widgets in **Pock → Widgets → Manage widgets…**. Both are built into Pock Community.
-- Select **Weather** to configure your city and temperature unit, or open **Customize Pock…** to add Weather to the Touch Bar.
-- Select **AI Activity** and click **Show AI activity** to open the Touch Bar view for running sessions. See the [setup guide](https://github.com/kalech7/pock-community/blob/main/docs/agent-activity.md) to connect a provider.
+- Fixes an unexpected quit when macOS dims the Touch Bar.
+- AI Activity reacts to session file changes and checks less often when its list is empty.
+- Weather does less drawing while scrolling details. Both widgets are available in **Pock → Widgets → Manage widgets…**.
 
 ## Installation
 
-1. Download `Pock-Community-0.10.1-13.zip`.
+1. Download `Pock-Community-0.10.1-14.zip`.
 2. Unzip it.
 3. Move `Pock.app` to `/Applications`.
 4. Open Pock Community.

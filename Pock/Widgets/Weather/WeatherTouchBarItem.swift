@@ -260,6 +260,7 @@ private final class WeatherBadgeButton: NSButton {
 	private var usesCompactReadingFont = false
 	private var details: [WeatherDetail] = []
 	private var detailIndex = 0
+	private var detailTextHeight: CGFloat = 0
 	private var detailIcon: NSImage?
 	private var tickerTimer: Timer?
 	private var tickerVisible = false
@@ -357,6 +358,10 @@ private final class WeatherBadgeButton: NSButton {
 		return NSRect(x: x, y: 16, width: max(0, bounds.width - x - rightInset), height: 13)
 	}
 
+	private var detailDrawingRect: NSRect {
+		return NSRect(x: cityStart, y: 16, width: max(0, bounds.width - cityStart), height: 14)
+	}
+
 	private func updateDetailIcon() {
 		detailIcon = currentDetail?.symbol.flatMap { Self.tintedSymbol($0, color: palette.icon) }
 	}
@@ -366,10 +371,11 @@ private final class WeatherBadgeButton: NSButton {
 		tickerTimer = nil
 		tickerOffset = 0
 		updateDetailIcon()
-		setNeedsDisplay(NSRect(x: cityStart, y: 16, width: max(0, bounds.width - cityStart), height: 14))
+		setNeedsDisplay(detailDrawingRect)
 		guard tickerVisible, cell?.isHighlighted != true, let detail = currentDetail else { return }
-		let textWidth = (detail.text as NSString).size(withAttributes: [.font: detailFont]).width
-		let distance = max(0, textWidth - detailBounds.width)
+		let textSize = (detail.text as NSString).size(withAttributes: [.font: detailFont])
+		detailTextHeight = textSize.height
+		let distance = max(0, textSize.width - detailBounds.width)
 		if distance > 1 && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
 			scheduleTicker(after: 1.6) { $0.scrollDetail(distance: distance) }
 		} else if details.count > 1 {
@@ -419,7 +425,15 @@ private final class WeatherBadgeButton: NSButton {
 			palette.city.withAlphaComponent(0.12).setFill()
 			shape.fill()
 		}
+		if !detailDrawingRect.contains(dirtyRect) {
+			drawReading()
+		}
+		if detailDrawingRect.intersects(dirtyRect) {
+			drawDetail()
+		}
+	}
 
+	private func drawReading() {
 		let iconRect = NSRect(x: 10, y: 2, width: 13, height: 13)
 		if let icon = icon {
 			icon.draw(in: iconRect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
@@ -432,7 +446,6 @@ private final class WeatherBadgeButton: NSButton {
 		drawText(reading, font: usesCompactReadingFont ? compactReadingFont : readingFont, color: readingColor,
 				 x: readingInset, width: readingWidth,
 				 centerY: 21.5, alignment: .center)
-		drawDetail()
 	}
 
 	private func drawDetail() {
@@ -445,10 +458,9 @@ private final class WeatherBadgeButton: NSButton {
 			return
 		}
 		let attributes: [NSAttributedString.Key: Any] = [.font: detailFont, .foregroundColor: palette.city]
-		let lineHeight = (detail.text as NSString).size(withAttributes: attributes).height
 		NSGraphicsContext.saveGraphicsState()
 		NSBezierPath(rect: area).addClip()
-		detail.text.draw(at: NSPoint(x: area.minX - tickerOffset, y: area.midY - lineHeight / 2), withAttributes: attributes)
+		detail.text.draw(at: NSPoint(x: area.minX - tickerOffset, y: area.midY - detailTextHeight / 2), withAttributes: attributes)
 		NSGraphicsContext.restoreGraphicsState()
 	}
 

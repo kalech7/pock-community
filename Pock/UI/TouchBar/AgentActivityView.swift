@@ -9,9 +9,12 @@ internal final class AgentActivityView: NSStackView {
 
 	private let pageSize = 3
 	private let readQueue = DispatchQueue(label: "io.github.pock.agent-activity", qos: .utility)
+	private var directoryMonitor: DispatchSourceFileSystemObject?
 	private var refreshTimer: Timer?
+	private var isRefreshing = false
 	private var refreshGeneration = 0
 	private var isReading = false
+	private var refreshRequested = false
 	private var sessions: [AgentActivity]?
 	private var page = 0
 	private var presentation: Presentation?
@@ -30,17 +33,13 @@ internal final class AgentActivityView: NSStackView {
 
 	deinit {
 		refreshTimer?.invalidate()
+		directoryMonitor?.cancel()
 	}
 
 	internal func startRefreshing() {
-		guard refreshTimer == nil else { return }
+		guard !isRefreshing else { return }
+		isRefreshing = true
 		Self.prepareCodexHooks()
-		let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
-			self?.refresh()
-		}
-		timer.tolerance = 0.4
-		refreshTimer = timer
-		RunLoop.main.add(timer, forMode: .common)
 		refresh()
 	}
 
@@ -67,18 +66,66 @@ internal final class AgentActivityView: NSStackView {
 	}
 
 	internal func stopRefreshing() {
-		guard let refreshTimer = refreshTimer else { return }
-		refreshTimer.invalidate()
-		self.refreshTimer = nil
+		guard isRefreshing else { return }
+		isRefreshing = false
 		refreshGeneration += 1
+		refreshTimer?.invalidate()
+		refreshTimer = nil
+		directoryMonitor?.cancel()
+		directoryMonitor = nil
 		isReading = false
+		refreshRequested = false
 		sessions = nil
 		page = 0
 		render(.loading)
 	}
 
+	private func watchDirectoryIfNeeded() {
+		guard directoryMonitor == nil, let descriptor = AgentActivityStore.openEventDirectory() else { return }
+		let generation = refreshGeneration
+		let source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor,
+			eventMask: [.write, .delete, .rename, .revoke], queue: .main)
+		source.setEventHandler { [weak self] in
+			guard let self = self, self.refreshGeneration == generation, let monitor = self.directoryMonitor else { return }
+			if !monitor.data.intersection([.delete, .rename, .revoke]).isEmpty {
+				monitor.cancel()
+				self.directoryMonitor = nil
+			}
+			self.scheduleDirectoryRefresh()
+		}
+		source.setCancelHandler { close(descriptor) }
+		directoryMonitor = source
+		source.resume()
+	}
+
+	private func scheduleDirectoryRefresh() {
+		if isReading {
+			refreshRequested = true
+			return
+		}
+		// Coalesce the temporary file and rename events emitted by each hook.
+		let delay: TimeInterval = 0.4
+		if let timer = refreshTimer, timer.fireDate.timeIntervalSinceNow <= delay { return }
+		scheduleRefresh(after: delay)
+	}
+
+	private func scheduleRefresh(after interval: TimeInterval) {
+		refreshTimer?.invalidate()
+		let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in self?.refresh() }
+		timer.tolerance = interval * 0.2
+		refreshTimer = timer
+		RunLoop.main.add(timer, forMode: .common)
+	}
+
 	private func refresh() {
-		guard refreshTimer != nil, !isReading else { return }
+		guard isRefreshing else { return }
+		refreshTimer?.invalidate()
+		refreshTimer = nil
+		if isReading {
+			refreshRequested = true
+			return
+		}
+		watchDirectoryIfNeeded()
 		isReading = true
 		let generation = refreshGeneration
 		readQueue.async { [weak self] in
@@ -87,6 +134,16 @@ internal final class AgentActivityView: NSStackView {
 			DispatchQueue.main.async { [weak self] in
 				guard let self = self, self.refreshGeneration == generation else { return }
 				self.isReading = false
+				defer {
+					if self.refreshRequested {
+						self.refreshRequested = false
+						self.scheduleDirectoryRefresh()
+					} else {
+						// Keep the short check for processes that exit without notifying their hook.
+						let isWatchingEmptyDirectory = self.directoryMonitor != nil && self.sessions?.isEmpty == true
+						self.scheduleRefresh(after: isWatchingEmptyDirectory ? 12 : 2)
+					}
+				}
 				switch result {
 				case .success(let sessions):
 					guard self.sessions != sessions else { return }
@@ -331,6 +388,17 @@ private enum AgentActivityStore {
 	private static let directory = kWidgetsPathURL.deletingLastPathComponent()
 		.appendingPathComponent("AgentActivity", isDirectory: true)
 
+	static func openEventDirectory(in directory: URL = directory) -> Int32? {
+		let descriptor = Darwin.open(directory.path, O_EVTONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
+		guard descriptor >= 0 else { return nil }
+		var info = stat()
+		guard fstat(descriptor, &info) == 0, isPrivateDirectory(info) else {
+			close(descriptor)
+			return nil
+		}
+		return descriptor
+	}
+
 	static func runningSessions(in directory: URL = directory) throws -> [AgentActivity] {
 		guard try canReadRecords(in: directory) else { return [] }
 		let files: [URL]
@@ -375,10 +443,14 @@ private enum AgentActivityStore {
 			if errno == ENOENT { return false }
 			throw CocoaError(.fileReadNoPermission)
 		}
-		guard info.st_mode & S_IFMT == S_IFDIR, info.st_uid == getuid(), info.st_mode & 0o077 == 0 else {
+		guard isPrivateDirectory(info) else {
 			throw CocoaError(.fileReadNoPermission)
 		}
 		return true
+	}
+
+	private static func isPrivateDirectory(_ info: stat) -> Bool {
+		return info.st_mode & S_IFMT == S_IFDIR && info.st_uid == getuid() && info.st_mode & 0o077 == 0
 	}
 
 	private static func readCurrentRecord(_ url: URL, using decoder: JSONDecoder, at now: TimeInterval) -> Record? {
