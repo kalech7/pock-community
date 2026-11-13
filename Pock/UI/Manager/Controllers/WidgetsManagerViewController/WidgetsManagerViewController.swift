@@ -41,13 +41,14 @@ class WidgetsManagerViewController: NSViewController {
 	// MARK: Data
 
 	private enum BuiltInWidget: CaseIterable {
-		case weather, agentActivity, nextMeeting
+		case weather, agentActivity, nextMeeting, audioOutput
 
 		var name: String {
 			switch self {
 			case .weather: return "Weather".localized
 			case .agentActivity: return "AI Activity".localized
 			case .nextMeeting: return NextMeetingReminder.name
+			case .audioOutput: return AudioOutputTouchBarItem.name
 			}
 		}
 
@@ -56,6 +57,7 @@ class WidgetsManagerViewController: NSViewController {
 			case .weather: return WeatherTouchBarItem.itemIdentifier.rawValue
 			case .agentActivity: return PockTouchBarController.nativeTouchBarToggleIdentifier.rawValue
 			case .nextMeeting: return NextMeetingReminder.identifier
+			case .audioOutput: return AudioOutputTouchBarItem.itemIdentifier.rawValue
 			}
 		}
 	}
@@ -255,6 +257,9 @@ extension WidgetsManagerViewController {
 		case .nextMeeting:
 			mountBuiltInPanel(NextMeetingPreferencesView())
 			return
+		case .audioOutput:
+			description = "Tap the speaker in AI Activity to switch between available speakers and headphones.".localized
+			buttons = [NSButton(title: "Show Audio Output".localized, target: self, action: #selector(showAudioOutput))]
 		}
 		let label = NSTextField(wrappingLabelWithString: description)
 		label.textColor = .secondaryLabelColor
@@ -292,6 +297,12 @@ extension WidgetsManagerViewController {
 		let controller = AppController.shared
 		if !controller.isVisible { controller.showPockTouchBar() }
 		controller.pockTouchBarController?.showAgentActivity()
+	}
+
+	@objc private func showAudioOutput() {
+		let controller = AppController.shared
+		if !controller.isVisible { controller.showPockTouchBar() }
+		controller.pockTouchBarController?.showAudioOutput()
 	}
 	
 	private func loadPreferencesContainerForSelectedPreferences() {

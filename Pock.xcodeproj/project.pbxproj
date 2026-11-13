@@ -76,6 +76,8 @@
 		A774B2F51D1A000100000004 /* pock-agent-activity.rb in Resources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000014 /* pock-agent-activity.rb */; };
 		A774B2F51D1A000100000005 /* MeetingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000015 /* MeetingCalendar.swift */; };
 		A774B2F51D1A000100000006 /* NextMeetingReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000016 /* NextMeetingReminder.swift */; };
+		A774B2F51D1A000100000007 /* AudioOutputService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000017 /* AudioOutputService.swift */; };
+		A774B2F51D1A000100000008 /* AudioOutputTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000018 /* AudioOutputTouchBarItem.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -204,6 +206,8 @@
 		A774B2F51D1A000100000014 /* pock-agent-activity.rb */ = {isa = PBXFileReference; lastKnownFileType = text.script.ruby; name = "pock-agent-activity.rb"; path = "scripts/pock-agent-activity.rb"; sourceTree = SOURCE_ROOT; };
 		A774B2F51D1A000100000015 /* MeetingCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingCalendar.swift; sourceTree = "<group>"; };
 		A774B2F51D1A000100000016 /* NextMeetingReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextMeetingReminder.swift; sourceTree = "<group>"; };
+		A774B2F51D1A000100000017 /* AudioOutputService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputService.swift; sourceTree = "<group>"; };
+		A774B2F51D1A000100000018 /* AudioOutputTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioOutputTouchBarItem.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -589,6 +593,7 @@
 			children = (
 				A774B2F51D1A000100000021 /* Weather */,
 				A774B2F51D1A000100000022 /* NextMeeting */,
+				A774B2F51D1A000100000023 /* AudioOutput */,
 				34564E0125F983640093E5E0 /* WidgetsLoader.swift */,
 				34291B7026408E1D00768B08 /* WidgetsInstaller.swift */,
 				34564E0925F98FD80093E5E0 /* Models */,
@@ -671,6 +676,15 @@
 				A774B2F51D1A000100000016 /* NextMeetingReminder.swift */,
 			);
 			path = NextMeeting;
+			sourceTree = "<group>";
+		};
+		A774B2F51D1A000100000023 /* AudioOutput */ = {
+			isa = PBXGroup;
+			children = (
+				A774B2F51D1A000100000017 /* AudioOutputService.swift */,
+				A774B2F51D1A000100000018 /* AudioOutputTouchBarItem.swift */,
+			);
+			path = AudioOutput;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -919,6 +933,8 @@
 				A774B2F51D1A000100000003 /* AgentActivityView.swift in Sources */,
 				A774B2F51D1A000100000005 /* MeetingCalendar.swift in Sources */,
 				A774B2F51D1A000100000006 /* NextMeetingReminder.swift in Sources */,
+				A774B2F51D1A000100000008 /* AudioOutputTouchBarItem.swift in Sources */,
+				A774B2F51D1A000100000007 /* AudioOutputService.swift in Sources */,
 				34564E0825F98FD50093E5E0 /* PKWidgetTouchBarItem.swift in Sources */,
 				340D5BAF2687A474001D73F8 /* NSFilterTextField.swift in Sources */,
 				34564DE725F836530093E5E0 /* AppController.swift in Sources */,
@@ -1139,7 +1155,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Pock/Bundle/Info.plist;
@@ -1173,7 +1189,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Pock/Bundle/Info.plist;
@@ -1201,7 +1217,7 @@
 				CODE_SIGN_ENTITLEMENTS = QLPockWidget/QLPockWidget.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = QLPockWidget/Info.plist;
@@ -1225,7 +1241,7 @@
 				CODE_SIGN_ENTITLEMENTS = QLPockWidget/QLPockWidget.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = QLPockWidget/Info.plist;

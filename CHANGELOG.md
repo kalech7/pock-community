@@ -9,6 +9,12 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-16 Community
+
+- Added a compact audio output selector to the AI Activity menu on the Touch Bar.
+- Highlighted the active output and placed the close button on the right. Selecting an output returns to AI Activity after macOS confirms the change.
+- Removed the session ID suffix from Codex cards while preserving chat navigation.
+
 ## 0.10.1-15 Community
 
 - Added an optional Next Meeting reminder with a compact join action five minutes before an event. Configure it in Widgets Manager.

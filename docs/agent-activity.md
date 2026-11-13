@@ -24,7 +24,7 @@ Each command prints JSON with the script's absolute path. Add its `hooks` entrie
 | Claude Code | `~/.claude/settings.json` | Start a new session or restart Claude Code. |
 | Gemini CLI | `~/.gemini/settings.json` | Start a new session or restart Gemini CLI with hooks enabled. |
 
-Start a turn and open **AI Activity**. The label shows the project folder name and the end of the session ID. The integration writes the session ID, project label, process ID, expiry time, and optional destination to a local file. It discards prompt and response text. Processing and storage stay on this Mac.
+Start a turn and open **AI Activity**. The card shows the project folder name, or a generic session label when no project name is available. The integration writes the session ID, project label, process ID, expiry time, and optional destination to a local file. It discards prompt and response text. Processing and storage stay on this Mac.
 
 The hooks publish and renew an activity record when the provider reports work. They remove it on the corresponding stop, session-end, or permission events. If a provider exits unexpectedly, Pock hides records from its stopped process. Providers can skip an end hook on cancellation, so records also expire after ten minutes without a new activity signal. A long operation with no events can disappear until its next activity signal. [Codex hooks](https://learn.chatgpt.com/docs/hooks), [Claude Code hooks](https://code.claude.com/docs/en/hooks), [Gemini CLI hooks](https://geminicli.com/docs/hooks/reference/)
 

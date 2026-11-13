@@ -1,16 +1,16 @@
-# Pock Community 0.10.1-15
+# Pock Community 0.10.1-16
 
 Pock Community is an unofficial community-maintained fork of Pock. This release is not an official Pock release and is not endorsed by the original authors.
 
 ## Highlights
 
-- Next Meeting shows a temporary reminder five minutes before an event, with a blue video button to join supported calls. It takes up no space between meetings.
-- Weather refreshes when its data is due, stops rendering updates while hidden, and reduces drawing during text scrolling.
-- The meeting reminder reads a shorter calendar window and avoids scheduled refreshes when turned off. Enable and configure it in **Pock → Widgets → Manage widgets…**.
+- Open Audio Output from the speaker icon in the AI Activity menu. Choose a connected speaker, headphones, or another available output. The active device is marked in blue.
+- The audio selector closes after macOS confirms a switch. The close button on the right returns to AI Activity.
+- Codex cards show the project name or a session label and keep opening the associated chat.
 
 ## Installation
 
-1. Download `Pock-Community-0.10.1-15.zip`.
+1. Download `Pock-Community-0.10.1-16.zip`.
 2. Unzip it.
 3. Move `Pock.app` to `/Applications`.
 4. Open Pock Community.

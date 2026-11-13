@@ -25,7 +25,17 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	private var mouseMoveThrottler = MouseMoveThrottler(maximumFrequency: 30, locationTolerance: 0.75)
 	private lazy var activityView = AgentActivityView()
 	private lazy var activityTouchBar = makeAgentActivityTouchBar()
-	private var isShowingAgentActivity = false
+	private enum Panel { case activity, audio }
+	private var panel: Panel?
+	private lazy var audioPanel = AudioOutputPanel { [weak self] in self?.showAgentActivity() }
+
+	private var presentedBar: NSTouchBar? {
+		switch panel {
+		case .activity: return activityTouchBar
+		case .audio: return audioPanel.touchBar
+		case nil: return touchBar
+		}
+	}
 	
 	private var currentItems: [NSTouchBarItem.Identifier] {
 		return touchBar?.itemIdentifiers ?? []
@@ -103,7 +113,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	deinit {
 		Roger.info("Deinit")
-		dismissAgentActivity()
+		dismissPanel()
 		flushWidgetItems()
 		emptyTouchBarController = nil
 		touchBar = nil
@@ -130,9 +140,9 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			return
 		}
 		let configuration = presentationConfiguration
-		TouchBarHelper.presentOnTop(isShowingAgentActivity ? activityTouchBar : touchBar, placement: configuration.placement)
+		TouchBarHelper.presentOnTop(presentedBar, placement: configuration.placement)
 		TouchBarHelper.setPresentationMode(to: configuration.mode)
-		if !isShowingAgentActivity {
+		if panel == nil {
 			checkForBlankTouchBar()
 		}
 	}
@@ -147,7 +157,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		edgeController?.tearDown(invalidate: true)
 		edgeController = nil
 		isVisible = false
-		if !dismissAgentActivity() {
+		if !dismissPanel() {
 			TouchBarHelper.dismissFromTop(touchBar)
 		}
 	}
@@ -172,7 +182,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	override func minimize() {
 		cancelBlankTouchBarCheck()
 		emptyTouchBarController?.dismiss()
-		if dismissAgentActivity() {
+		if dismissPanel() {
 			isVisible = false
 			touchBar = nil
 		} else {
@@ -182,13 +192,13 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	override func dismiss() {
 		cancelBlankTouchBarCheck()
-		let dismissedActivity = dismissAgentActivity()
+		let dismissedPanel = dismissPanel()
 		emptyTouchBarController?.dismiss()
 		guard isVisible else {
 			return
 		}
 		TouchBarHelper.setPresentationMode(to: Preferences[.userDefinedPresentationMode] as PresentationMode)
-		if dismissedActivity {
+		if dismissedPanel {
 			isVisible = false
 			touchBar = nil
 		} else {
@@ -265,23 +275,37 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	}
 
 	@discardableResult
-	private func dismissAgentActivity() -> Bool {
-		guard isShowingAgentActivity else { return false }
-		isShowingAgentActivity = false
-		TouchBarHelper.dismissFromTop(activityTouchBar)
-		activityView.stopRefreshing()
+	private func dismissPanel() -> Bool {
+		guard let openPanel = panel else { return false }
+		TouchBarHelper.dismissFromTop(presentedBar)
+		panel = nil
+		switch openPanel {
+		case .activity: activityView.stopRefreshing()
+		case .audio: audioPanel.stop()
+		}
 		return true
 	}
 
 	@objc internal func showAgentActivity() {
-		guard isVisible, !AppController.shared.isLocked, !isShowingAgentActivity else { return }
+		showPanel(.activity)
+	}
+
+	@objc internal func showAudioOutput() {
+		showPanel(.audio)
+	}
+
+	private func showPanel(_ nextPanel: Panel) {
+		guard isVisible, !AppController.shared.isLocked, panel != nextPanel else { return }
 		cancelBlankTouchBarCheck()
 		edgeController?.tearDown(invalidate: true)
 		edgeController = nil
-		isShowingAgentActivity = true
-		TouchBarHelper.dismissFromTop(touchBar)
+		if !dismissPanel() { TouchBarHelper.dismissFromTop(touchBar) }
+		panel = nextPanel
+		switch nextPanel {
+		case .activity: activityView.startRefreshing()
+		case .audio: audioPanel.start()
+		}
 		restorePresentation()
-		activityView.startRefreshing()
 	}
 
 	private func makeAgentActivityTouchBar() -> NSTouchBar {
@@ -294,6 +318,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		)
 		let activity = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity"))
 		activity.view = activityView
+		let audio = AudioOutputTouchBarItem.make(target: self, action: #selector(showAudioOutput))
 		let native = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity.native"))
 		native.view = TouchBarSwapHandleView(
 			direction: .toNative,
@@ -302,27 +327,27 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			action: #selector(AppController.showNativeTouchBarFromHandle)
 		)
 		let bar = NSTouchBar()
-		bar.templateItems = [back, activity, native]
-		bar.defaultItemIdentifiers = [back.identifier, .flexibleSpace, activity.identifier, .flexibleSpace, native.identifier]
+		bar.templateItems = [back, activity, audio, native]
+		bar.defaultItemIdentifiers = [back.identifier, .flexibleSpace, activity.identifier, .flexibleSpace, audio.identifier, native.identifier]
 		bar.principalItemIdentifier = activity.identifier
 		return bar
 	}
 
 	@objc private func returnFromAgentActivity() {
-		guard isShowingAgentActivity else { return }
+		guard panel == .activity else { return }
 		showWidgets()
 	}
 
 	@objc internal func showWidgets() {
-		guard isShowingAgentActivity else {
+		guard panel != nil else {
 			restorePresentation()
 			return
 		}
 		guard !AppController.shared.isLocked else { return }
-		dismissAgentActivity()
+		dismissPanel()
 		restorePresentation()
 		async(after: 0.05) { [weak self] in
-			guard let self = self, self.isVisible, !self.isShowingAgentActivity else { return }
+			guard let self = self, self.isVisible, self.panel == nil else { return }
 			self.reloadScreenEdgeController()
 		}
 	}
@@ -363,7 +388,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	
 	// MARK: Mouse Overrides
 	override func reloadScreenEdgeController() {
-		if !isShowingAgentActivity, Preferences[.mouseSupportEnabled], let parentView = parentView {
+		if panel == nil, Preferences[.mouseSupportEnabled], let parentView = parentView {
 			let color: NSColor = Preferences[.showTrackingArea] ? .systemBlue : .clear
 			self.edgeController = PKScreenEdgeController(mouseDelegate: self, parentView: parentView, barColor: color)
 		} else {

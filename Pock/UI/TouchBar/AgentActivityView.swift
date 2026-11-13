@@ -462,11 +462,26 @@ private enum AgentActivityStore {
 
 	private static func activity(from record: Record, at file: URL) -> AgentActivity? {
 		let provider = displayText(record.provider, limit: 32)
-		let title = displayText(record.title, limit: 120)
-		guard !provider.isEmpty, !title.isEmpty, !record.id.isEmpty, record.id.count <= 256,
+		guard !provider.isEmpty, !record.id.isEmpty, record.id.count <= 256,
 			  record.id.rangeOfCharacter(from: .controlCharacters) == nil else { return nil }
+		let title = displayText(provider == "Codex" ? codexTitle(for: record) : record.title, limit: 120)
+		guard !title.isEmpty else { return nil }
 		return AgentActivity(id: record.id, provider: provider, title: title, url: allowedURL(record.url),
 							 bundleIdentifier: allowedBundleIdentifier(record.bundleIdentifier), recordURL: file)
+	}
+
+	private static func codexTitle(for record: Record) -> String {
+		let shortID = String(record.id.suffix(8))
+		let hookSuffix = " · \(shortID)"
+		let title = record.title.trimmingCharacters(in: .whitespacesAndNewlines)
+		if title.isEmpty || title == record.id || title == shortID || title == "Session \(shortID)" {
+			return "Codex session".localized
+		}
+		// Existing hooks append the session ID to a project label. Keep the ID only for routing.
+		if title.hasSuffix(hookSuffix) {
+			return String(title.dropLast(hookSuffix.count))
+		}
+		return title
 	}
 
 	private static func readRecord(_ url: URL) -> Data? {
