@@ -2,11 +2,15 @@
 
 The **AI Activity** menu shows running work. It removes sessions when the provider reports that they finished or are waiting for permission. Tap an item to open its Codex chat or bring the terminal or editor hosting it to the front, when the integration supplies a destination.
 
+Long titles scroll slowly across their cards. If Reduce Motion is enabled in macOS, the cards show the beginning of each title with an ellipsis instead.
+
 ## Connect Codex
 
 The local installer adds Pock's Codex hooks automatically when it finds a Codex configuration directory. The installed app also sets them up the first time you open **AI Activity**. Existing hooks are preserved.
 
 Approve the Pock Community entries in **Settings → Hooks** in Codex or with `/hooks` in the CLI. Codex requires this review before it runs new hook commands. Pock's hook commands verify the bundled script's SHA-256 before running it. A change to the script requires a new review. [Codex hooks](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks)
+
+Pock looks up the active chat's name by ID in the latest 2 MiB of Codex's local `session_index.jsonl`. If Codex has yet to save a name or Pock cannot find it there, the card shows the project folder or a generic session label with the last eight characters of the session ID. Pock reads the name without opening the chat transcript or copying it into the activity file.
 
 ## Connect Claude Code or Gemini CLI
 
@@ -38,7 +42,7 @@ An integration can publish one `.json` file per active session under `~/Library/
 | --- | --- |
 | `provider` | Provider display name. |
 | `id` | Stable session identifier for that provider. |
-| `title` | Short label to display on the Touch Bar. |
+| `title` | Chat title or session label to display on the Touch Bar. |
 | `pid` | Live process ID for the local runner. |
 | `expiresAt` | Expiration time in Unix seconds. |
 | `url` | Optional HTTPS chat link or a Codex thread URL. |

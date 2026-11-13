@@ -9,6 +9,11 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-17 Community
+
+- AI Activity shows each active Codex chat's saved title and slowly scrolls titles that do not fit on the Touch Bar.
+- Tapping a Codex card opens that conversation. Untitled chats show a short session ID so chats in the same project remain distinguishable.
+
 ## 0.10.1-16 Community
 
 - Added a compact audio output selector to the AI Activity menu on the Touch Bar.

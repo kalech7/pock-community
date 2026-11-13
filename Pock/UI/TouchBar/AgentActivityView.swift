@@ -172,6 +172,7 @@ internal final class AgentActivityView: NSStackView {
 	private func render(_ newPresentation: Presentation) {
 		guard presentation != newPresentation else { return }
 		presentation = newPresentation
+		let existingButtons = arrangedSubviews.compactMap { $0 as? AgentSessionButton }
 		for view in arrangedSubviews {
 			removeArrangedSubview(view)
 			view.removeFromSuperview()
@@ -186,7 +187,10 @@ internal final class AgentActivityView: NSStackView {
 				addPageButton(title: "‹", label: "Previous sessions", offset: -1, enabled: hasPrevious)
 			}
 			for session in visibleSessions {
-				addArrangedSubview(AgentSessionButton(session: session, target: self, action: #selector(openSession(_:))))
+				let button = existingButtons.first { $0.session == session } ??
+					AgentSessionButton(session: session, target: self, action: #selector(openSession(_:)))
+				addArrangedSubview(button)
+				button.startTitleTicker()
 			}
 			if isPaged {
 				for _ in visibleSessions.count..<pageSize {
@@ -229,26 +233,26 @@ internal final class AgentActivityView: NSStackView {
 	}
 
 	@objc private func openSession(_ sender: AgentSessionButton) {
-		guard arrangedSubviews.contains(where: { $0 === sender }) else { return }
+		guard isRefreshing, sender.isEnabled, arrangedSubviews.contains(where: { $0 === sender }) else { return }
 		let session = sender.session
+		let generation = refreshGeneration
 		sender.isEnabled = false
 		readQueue.async { [weak self, weak sender] in
-			guard self != nil, sender != nil else { return }
-			let isRunning = AgentActivityStore.isRunning(session)
+			guard self != nil else { return }
+			let currentSession = AgentActivityStore.runningSession(matching: session)
 			DispatchQueue.main.async { [weak self, weak sender] in
-				guard let self = self, let sender = sender,
-					  self.arrangedSubviews.contains(where: { $0 === sender }) else { return }
-				sender.isEnabled = true
-				guard isRunning else {
+				guard let self = self, self.refreshGeneration == generation else { return }
+				sender?.isEnabled = true
+				guard let currentSession = currentSession else {
 					self.refresh()
 					return
 				}
-				self.open(session, from: sender)
+				self.open(currentSession, from: sender)
 			}
 		}
 	}
 
-	private func open(_ session: AgentActivity, from sender: AgentSessionButton) {
+	private func open(_ session: AgentActivity, from sender: AgentSessionButton?) {
 		let workspace = NSWorkspace.shared
 		if let url = session.url, workspace.open(url) {
 			return
@@ -258,7 +262,7 @@ internal final class AgentActivityView: NSStackView {
 		   workspace.open(application) {
 			return
 		}
-		sender.showOpenFailure()
+		sender?.showOpenFailure()
 	}
 }
 
@@ -268,10 +272,15 @@ private final class AgentSessionButton: NSButton {
 	private static let pressedSurface = NSColor(white: 0.26, alpha: 1)
 	private static let symbolColor = NSColor(white: 0.72, alpha: 1)
 	private static let runningColor = NSColor(srgbRed: 0.39, green: 0.78, blue: 0.46, alpha: 1)
-	private static let titleAttributes: [NSAttributedString.Key: Any] = {
+	private static let titleAttributes: [NSAttributedString.Key: Any] = [
+		.font: NSFont.systemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor(white: 0.96, alpha: 1)
+	]
+	private static let truncatedTitleAttributes: [NSAttributedString.Key: Any] = {
 		let paragraph = NSMutableParagraphStyle()
 		paragraph.lineBreakMode = .byTruncatingTail
-		return [.font: NSFont.systemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor(white: 0.96, alpha: 1), .paragraphStyle: paragraph]
+		var attributes = titleAttributes
+		attributes[.paragraphStyle] = paragraph
+		return attributes
 	}()
 	// Product marks from ChatGPT's Codex resources, Anthropic's press kit and Gemini's site.
 	private static let codexIcon = NSImage(named: "agent-codex")
@@ -280,12 +289,16 @@ private final class AgentSessionButton: NSButton {
 
 	let session: AgentActivity
 	private let providerIcon: NSImage?
+	private let titleSize: NSSize
+	private var titleTimer: Timer?
+	private var titleOffset: CGFloat = 0
 	private var feedback: DispatchWorkItem?
 	private var cannotOpen = false
 	private var hasDestination: Bool { return session.url != nil || session.bundleIdentifier != nil }
 
 	init(session: AgentActivity, target: AnyObject, action: Selector) {
 		self.session = session
+		titleSize = (session.title as NSString).size(withAttributes: Self.titleAttributes)
 		switch session.provider.lowercased() {
 		case "codex": providerIcon = Self.codexIcon
 		case "claude", "claude code": providerIcon = Self.claudeIcon
@@ -300,6 +313,9 @@ private final class AgentSessionButton: NSButton {
 		if hasDestination {
 			self.target = target
 			self.action = action
+			let tap = NSClickGestureRecognizer(target: self, action: #selector(handleDirectTouch(_:)))
+			tap.allowedTouchTypes = .direct
+			addGestureRecognizer(tap)
 		} else {
 			setAccessibilityRole(.staticText)
 		}
@@ -309,8 +325,16 @@ private final class AgentSessionButton: NSButton {
 
 	required init?(coder: NSCoder) { return nil }
 
+	deinit { titleTimer?.invalidate() }
+
 	override var isFlipped: Bool { return true }
 	override var intrinsicContentSize: NSSize { return NSSize(width: Self.width, height: 30) }
+	override func acceptsFirstMouse(for event: NSEvent?) -> Bool { return true }
+
+	@objc private func handleDirectTouch(_ recognizer: NSClickGestureRecognizer) {
+		guard recognizer.state == .ended, isEnabled else { return }
+		performClick(nil)
+	}
 
 	override func highlight(_ flag: Bool) {
 		super.highlight(flag)
@@ -325,11 +349,65 @@ private final class AgentSessionButton: NSButton {
 		Self.runningColor.setFill()
 		NSBezierPath(ovalIn: NSRect(x: 22, y: bounds.midY + 6, width: 3, height: 3)).fill()
 
-		let textStart: CGFloat = 27
-		let textWidth = max(0, bounds.width - textStart - 4)
-		let textRect = NSRect(x: textStart, y: bounds.midY - 7, width: textWidth, height: 14)
-		(cannotOpen ? "Can’t open" : session.title).draw(with: textRect,
-			options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: Self.titleAttributes)
+		guard titleRect.intersects(dirtyRect) else { return }
+		if cannotOpen || titleTimer == nil {
+			(cannotOpen ? "Can’t open" : session.title).draw(with: titleRect,
+				options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], attributes: Self.truncatedTitleAttributes)
+		} else {
+			NSGraphicsContext.saveGraphicsState()
+			NSBezierPath(rect: titleRect).addClip()
+			(session.title as NSString).draw(at: NSPoint(x: titleRect.minX - titleOffset, y: bounds.midY - titleSize.height / 2),
+				withAttributes: Self.titleAttributes)
+			NSGraphicsContext.restoreGraphicsState()
+		}
+	}
+
+	private var titleRect: NSRect {
+		let start: CGFloat = 27
+		return NSRect(x: start, y: bounds.midY - 8, width: max(0, bounds.width - start - 4), height: 16)
+	}
+
+	func startTitleTicker() {
+		guard titleTimer == nil, titleSize.width > titleRect.width,
+			  !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
+		scheduleTitleTick(after: 1.6) { $0.scrollTitle() }
+	}
+
+	private func scheduleTitleTick(after interval: TimeInterval, action: @escaping (AgentSessionButton) -> Void) {
+		let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
+			guard let self = self else { return }
+			self.titleTimer = nil
+			action(self)
+		}
+		timer.tolerance = 0.1
+		titleTimer = timer
+		RunLoop.main.add(timer, forMode: .common)
+	}
+
+	private func scrollTitle() {
+		let distance = titleSize.width - titleRect.width
+		guard distance > 0, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+			setNeedsDisplay(titleRect)
+			return
+		}
+		let start = ProcessInfo.processInfo.systemUptime
+		let speed: CGFloat = 20
+		let timer = Timer(timeInterval: 1.0 / 24, repeats: true) { [weak self] timer in
+			guard let self = self else { timer.invalidate(); return }
+			self.titleOffset = min(distance, CGFloat(ProcessInfo.processInfo.systemUptime - start) * speed)
+			self.setNeedsDisplay(self.titleRect)
+			if self.titleOffset == distance {
+				timer.invalidate()
+				self.scheduleTitleTick(after: 1.6) { button in
+					button.titleOffset = 0
+					button.startTitleTicker()
+					button.setNeedsDisplay(button.titleRect)
+				}
+			}
+		}
+		timer.tolerance = 0.008
+		titleTimer = timer
+		RunLoop.main.add(timer, forMode: .common)
 	}
 
 	private func drawProviderIcon() {
@@ -368,7 +446,7 @@ private final class AgentSessionButton: NSButton {
 private struct AgentActivity: Equatable {
 	let id: String
 	let provider: String
-	let title: String
+	var title: String
 	let url: URL?
 	let bundleIdentifier: String?
 	let recordURL: URL
@@ -421,20 +499,32 @@ private enum AgentActivityStore {
 			guard (sessions[key]?.expiresAt ?? 0) < record.expiresAt else { continue }
 			sessions[key] = (session, record.expiresAt)
 		}
-		return sessions.values.map(\.session).sorted { left, right in
+		let activeSessions = sessions.values.map(\.session).sorted { left, right in
 			if left.provider != right.provider { return left.provider < right.provider }
 			if left.title != right.title { return left.title < right.title }
 			return left.id < right.id
 		}
+		let codexIDs = Set(activeSessions.filter { $0.provider == "Codex" }.compactMap { UUID(uuidString: $0.id) })
+		let codexTitles = readCodexTitles(for: codexIDs)
+		return activeSessions.map { session in
+			guard session.provider == "Codex", let id = UUID(uuidString: session.id), let title = codexTitles[id] else {
+				return session
+			}
+			var namedSession = session
+			namedSession.title = title
+			return namedSession
+		}
 	}
 
-	static func isRunning(_ session: AgentActivity, in directory: URL = directory) -> Bool {
+	static func runningSession(matching session: AgentActivity, in directory: URL = directory) -> AgentActivity? {
 		let file = session.recordURL
 		guard file.deletingLastPathComponent().standardizedFileURL.path == directory.standardizedFileURL.path,
 			  (try? canReadRecords(in: directory)) == true,
 			  let record = readCurrentRecord(file, using: JSONDecoder(), at: Date().timeIntervalSince1970),
-			  kill(record.pid, 0) == 0 else { return false }
-		return activity(from: record, at: file) == session
+			  kill(record.pid, 0) == 0,
+			  let current = activity(from: record, at: file),
+			  current.id == session.id, current.provider == session.provider else { return nil }
+		return current
 	}
 
 	private static func canReadRecords(in directory: URL) throws -> Bool {
@@ -466,22 +556,69 @@ private enum AgentActivityStore {
 			  record.id.rangeOfCharacter(from: .controlCharacters) == nil else { return nil }
 		let title = displayText(provider == "Codex" ? codexTitle(for: record) : record.title, limit: 120)
 		guard !title.isEmpty else { return nil }
-		return AgentActivity(id: record.id, provider: provider, title: title, url: allowedURL(record.url),
+		return AgentActivity(id: record.id, provider: provider, title: title, url: allowedURL(record.url, sessionID: record.id),
 							 bundleIdentifier: allowedBundleIdentifier(record.bundleIdentifier), recordURL: file)
 	}
 
 	private static func codexTitle(for record: Record) -> String {
 		let shortID = String(record.id.suffix(8))
-		let hookSuffix = " · \(shortID)"
 		let title = record.title.trimmingCharacters(in: .whitespacesAndNewlines)
 		if title.isEmpty || title == record.id || title == shortID || title == "Session \(shortID)" {
-			return "Codex session".localized
-		}
-		// Existing hooks append the session ID to a project label. Keep the ID only for routing.
-		if title.hasSuffix(hookSuffix) {
-			return String(title.dropLast(hookSuffix.count))
+			return "\("Codex session".localized) · \(shortID)"
 		}
 		return title
+	}
+
+	private struct CodexTitle: Decodable {
+		let id: UUID
+		let title: String
+
+		enum CodingKeys: String, CodingKey {
+			case id
+			case title = "thread_name"
+		}
+	}
+
+	private static let codexIndex: URL = {
+		let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"].flatMap { path in
+			path.hasPrefix("/") ? URL(fileURLWithPath: path, isDirectory: true) : nil
+		} ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex", isDirectory: true)
+		return codexHome.appendingPathComponent("session_index.jsonl")
+	}()
+
+	private static func readCodexTitles(for ids: Set<UUID>) -> [UUID: String] {
+		guard !ids.isEmpty else { return [:] }
+		let file = Darwin.open(codexIndex.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC)
+		guard file >= 0 else { return [:] }
+		defer { close(file) }
+		var info = stat()
+		guard fstat(file, &info) == 0, info.st_mode & S_IFMT == S_IFREG,
+			  info.st_uid == getuid(), info.st_mode & 0o022 == 0, info.st_size > 0 else { return [:] }
+
+		// Codex appends name changes. Bound the scan to the latest part of its local name index.
+		let length = Int(min(info.st_size, 2 * 1024 * 1024))
+		let offset = info.st_size - off_t(length)
+		var data = Data(count: length)
+		let count = data.withUnsafeMutableBytes { pread(file, $0.baseAddress, $0.count, offset) }
+		guard count == length else { return [:] }
+		let decoder = JSONDecoder()
+		var titles: [UUID: String] = [:]
+		var end = data.endIndex
+		while end > data.startIndex {
+			let separator = data[..<end].lastIndex(of: 0x0a)
+			let start = separator.map { $0 + 1 } ?? data.startIndex
+			if separator == nil && offset > 0 { break }
+			let line = data[start..<end]
+			end = separator ?? data.startIndex
+			guard !line.isEmpty, line.count <= 4_096 else { continue }
+			guard let entry = try? decoder.decode(CodexTitle.self, from: line), ids.contains(entry.id),
+				  titles[entry.id] == nil else { continue }
+			let title = displayText(entry.title, limit: 120)
+			guard !title.isEmpty else { continue }
+			titles[entry.id] = title
+			if titles.count == ids.count { break }
+		}
+		return titles
 	}
 
 	private static func readRecord(_ url: URL) -> Data? {
@@ -500,7 +637,7 @@ private enum AgentActivityStore {
 		return String(string.split(whereSeparator: \.isWhitespace).joined(separator: " ").prefix(limit))
 	}
 
-	private static func allowedURL(_ string: String?) -> URL? {
+	private static func allowedURL(_ string: String?, sessionID: String) -> URL? {
 		guard let string = string, let components = URLComponents(string: string),
 			  components.user == nil, components.password == nil else { return nil }
 		switch components.scheme?.lowercased() {
@@ -508,7 +645,8 @@ private enum AgentActivityStore {
 			return components.url
 		case "codex" where components.host == "threads" && components.port == nil && components.query == nil && components.fragment == nil:
 			let threadID = String(components.path.dropFirst())
-			guard components.path.hasPrefix("/"), UUID(uuidString: threadID) != nil else { return nil }
+			guard components.path.hasPrefix("/"), let thread = UUID(uuidString: threadID),
+				  thread == UUID(uuidString: sessionID) else { return nil }
 			return URL(string: "codex://threads/\(threadID)")
 		default:
 			return nil
