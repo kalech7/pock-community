@@ -220,6 +220,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 		// MARK: Customize Touch Bar
 		mainBarMenu.addItem(NSMenuHeader.new(title: "menu.customization".localized))
 		mainBarMenu.addItem(NSMenuItemCustomView.new(
+			title: "Organize Widgets…".localized,
+			target: self,
+			selector: #selector(openTouchBarLayoutEditor),
+			keyEquivalent: nil
+		))
+		mainBarMenu.addItem(NSMenuItemCustomView.new(
 			title: "menu.customization.pock".localized,
 			target: self,
 			selector: #selector(openCustomizationPalette),
@@ -355,6 +361,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 	}
 	
 	// MARK: Open customization menu
+	@objc private func openTouchBarLayoutEditor() {
+		AppController.shared.openTouchBarLayoutEditor()
+	}
+
 	@objc private func openCustomizationPalette(_ sender: NSMenuItem) {
 		switch sender.keyEquivalent {
 		case "p":

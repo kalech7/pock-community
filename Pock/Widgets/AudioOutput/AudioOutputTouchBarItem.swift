@@ -15,6 +15,10 @@ internal enum AudioOutputTouchBarItem {
 }
 
 internal final class AudioOutputPanel: NSObject {
+	private static let panelIdentifier = NSTouchBarItem.Identifier("io.github.pock.audio-output.panel")
+	private static let closeIdentifier = NSTouchBarItem.Identifier("io.github.pock.audio-output.close")
+	static let itemIdentifiers: [NSTouchBarItem.Identifier] = [.flexibleSpace, panelIdentifier, .flexibleSpace, closeIdentifier]
+
 	private let service = AudioOutputService()
 	private let onClose: () -> Void
 	private var snapshot: AudioOutputSnapshot?
@@ -37,7 +41,7 @@ internal final class AudioOutputPanel: NSObject {
 	}
 	private lazy var close = navigationButton("xmark", fallback: NSImage.stopProgressTemplateName,
 		label: "Close Audio Output".localized, action: #selector(closePanel), width: 42)
-	internal private(set) lazy var touchBar = makeTouchBar()
+	private(set) lazy var templateItems = makeItems()
 
 	init(onClose: @escaping () -> Void) {
 		self.onClose = onClose
@@ -62,7 +66,7 @@ internal final class AudioOutputPanel: NSObject {
 
 	deinit { confirmationTimer?.invalidate() }
 
-	private func makeTouchBar() -> NSTouchBar {
+	private func makeItems() -> Set<NSTouchBarItem> {
 		status.font = .systemFont(ofSize: 11, weight: .medium)
 		status.textColor = .secondaryLabelColor
 		status.alignment = .center
@@ -72,14 +76,11 @@ internal final class AudioOutputPanel: NSObject {
 		for view in [previous] + deviceButtons + [next, status] {
 			row.addArrangedSubview(view)
 		}
-		let item = NSCustomTouchBarItem(identifier: .init("io.github.pock.audio-output.panel"))
+		let item = NSCustomTouchBarItem(identifier: Self.panelIdentifier)
 		item.view = row
-		let closeItem = NSCustomTouchBarItem(identifier: .init("io.github.pock.audio-output.close"))
+		let closeItem = NSCustomTouchBarItem(identifier: Self.closeIdentifier)
 		closeItem.view = close
-		let bar = NSTouchBar()
-		bar.templateItems = [item, closeItem]
-		bar.defaultItemIdentifiers = [.flexibleSpace, item.identifier, .flexibleSpace, closeItem.identifier]
-		return bar
+		return [item, closeItem]
 	}
 
 	private func refresh() {

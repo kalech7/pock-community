@@ -9,6 +9,12 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-18 Community
+
+- Restored the Status widget with configurable Wi-Fi, battery, date and time, and a preview for the clock format.
+- Added Organize Widgets to place and reorder widgets across the main and second Touch Bar menus.
+- Fixed a blank Touch Bar when returning to the main menu after rapid menu switches. Pock updates the visible items in place when switching between its menus.
+
 ## 0.10.1-17 Community
 
 - AI Activity shows each active Codex chat's saved title and slowly scrolls titles that do not fit on the Touch Bar.

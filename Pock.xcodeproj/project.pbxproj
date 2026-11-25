@@ -73,6 +73,8 @@
 		A774B2F51D1A000100000001 /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000011 /* WeatherService.swift */; };
 		A774B2F51D1A000100000002 /* WeatherTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000012 /* WeatherTouchBarItem.swift */; };
 		A774B2F51D1A000100000003 /* AgentActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000013 /* AgentActivityView.swift */; };
+		B89A3F4C2F01111700000003 /* TouchBarLayoutEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89A3F4C2F01111700000004 /* TouchBarLayoutEditor.swift */; };
+		B89A3F4C2F01111700000007 /* StatusTouchBarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = B89A3F4C2F01111700000008 /* StatusTouchBarItem.swift */; };
 		A774B2F51D1A000100000004 /* pock-agent-activity.rb in Resources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000014 /* pock-agent-activity.rb */; };
 		A774B2F51D1A000100000005 /* MeetingCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000015 /* MeetingCalendar.swift */; };
 		A774B2F51D1A000100000006 /* NextMeetingReminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A774B2F51D1A000100000016 /* NextMeetingReminder.swift */; };
@@ -203,6 +205,8 @@
 		A774B2F51D1A000100000011 /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
 		A774B2F51D1A000100000012 /* WeatherTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherTouchBarItem.swift; sourceTree = "<group>"; };
 		A774B2F51D1A000100000013 /* AgentActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentActivityView.swift; sourceTree = "<group>"; };
+		B89A3F4C2F01111700000004 /* TouchBarLayoutEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchBarLayoutEditor.swift; sourceTree = "<group>"; };
+		B89A3F4C2F01111700000008 /* StatusTouchBarItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusTouchBarItem.swift; sourceTree = "<group>"; };
 		A774B2F51D1A000100000014 /* pock-agent-activity.rb */ = {isa = PBXFileReference; lastKnownFileType = text.script.ruby; name = "pock-agent-activity.rb"; path = "scripts/pock-agent-activity.rb"; sourceTree = SOURCE_ROOT; };
 		A774B2F51D1A000100000015 /* MeetingCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeetingCalendar.swift; sourceTree = "<group>"; };
 		A774B2F51D1A000100000016 /* NextMeetingReminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextMeetingReminder.swift; sourceTree = "<group>"; };
@@ -546,6 +550,8 @@
 				34564DED25F837CB0093E5E0 /* PockTouchBarController */,
 				34291B9226455D1900768B08 /* EmptyTouchBarController */,
 				A774B2F51D1A000100000013 /* AgentActivityView.swift */,
+				B89A3F4C2F01111700000004 /* TouchBarLayoutEditor.swift */,
+				B89A3F4C2F01111700000008 /* StatusTouchBarItem.swift */,
 			);
 			path = TouchBar;
 			sourceTree = "<group>";
@@ -931,6 +937,8 @@
 				A774B2F51D1A000100000001 /* WeatherService.swift in Sources */,
 				A774B2F51D1A000100000002 /* WeatherTouchBarItem.swift in Sources */,
 				A774B2F51D1A000100000003 /* AgentActivityView.swift in Sources */,
+				B89A3F4C2F01111700000003 /* TouchBarLayoutEditor.swift in Sources */,
+				B89A3F4C2F01111700000007 /* StatusTouchBarItem.swift in Sources */,
 				A774B2F51D1A000100000005 /* MeetingCalendar.swift in Sources */,
 				A774B2F51D1A000100000006 /* NextMeetingReminder.swift in Sources */,
 				A774B2F51D1A000100000008 /* AudioOutputTouchBarItem.swift in Sources */,
@@ -1155,7 +1163,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Pock/Bundle/Info.plist;
@@ -1189,7 +1197,7 @@
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = Pock/Bundle/Info.plist;
@@ -1217,7 +1225,7 @@
 				CODE_SIGN_ENTITLEMENTS = QLPockWidget/QLPockWidget.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = QLPockWidget/Info.plist;
@@ -1241,7 +1249,7 @@
 				CODE_SIGN_ENTITLEMENTS = QLPockWidget/QLPockWidget.entitlements;
 				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 17;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = QLPockWidget/Info.plist;

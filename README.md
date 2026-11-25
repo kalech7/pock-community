@@ -31,11 +31,12 @@ If macOS blocks the app because the release is unsigned or not notarized, open *
 
 ## Touch Bar Weather and AI Activity
 
-Open **Widgets → Manage widgets…** in the Pock menu to find **Weather** and **AI Activity**. The manager can open Weather settings and show AI Activity on the Touch Bar.
+Open **Widgets → Manage widgets…** in the Pock menu to find **Weather**, **AI Activity**, and **Status**. Use **Organize Widgets…** to arrange widgets across the two Touch Bar menus.
 
 - **Weather** shows the city, temperature and current condition. Its second line cycles through wind, humidity, feels-like temperature and applicable public holidays when available. Tap it to choose a city and °C or °F. Add it to a custom layout through **Customize Pock…**. Forecasts use [Open-Meteo](https://open-meteo.com/) and public holidays use [Nager.Date](https://nagerholidays.com/en/api).
 - **AI Activity** opens from the existing Touch Bar switch and shows sessions that are currently working. Tap a session to open it if its provider supplies a destination. The left handle returns to your widgets and the right handle shows the native Touch Bar. From the native bar, tap the Pock handle when available or press **Control–Option–Command–P** to return. The **Show Touch Bar switch** setting controls the handle.
 - **Next Meeting** shows a temporary Touch Bar reminder five minutes before a timed Calendar event. Tap the video icon to join a supported meeting, the calendar icon to open Calendar when there is no link, or the × to dismiss. The reminder also closes automatically after 30 seconds. In **Widgets Manager → Next Meeting**, grant Calendar access, choose all calendars or a specific calendar, and turn reminders on or off. Add Google, iCloud, Exchange, or other supported accounts in macOS **Calendar → Add Account**. Pock reads synced events through EventKit and saves the calendar selection locally.
+- **Status** shows Wi-Fi, battery and charging, and the date and time. Choose the indicators, battery icon or percentage, and clock format in **Widgets Manager → Status**. In **Organize Widgets…**, place Status in the main or second Touch Bar menu, then click **Apply Layout**.
 - **Audio Output** is available from the speaker icon in **AI Activity**. Tap a device to switch the Mac’s default audio output. The active device is marked in blue, and **×** on the right returns to AI Activity.
 - The installer sets up Codex hooks automatically. Approve the Pock Community entries in Codex to start receiving activity. See [provider integrations](docs/agent-activity.md) for other tools.
 
@@ -92,6 +93,8 @@ Compatibility depends on macOS version, hardware, and whether the Mac has a phys
 | macOS | MacBook model | Processor | Touch Bar | Status |
 | --- | --- | --- | --- | --- |
 | macOS 26.0 / 26.2 SDK local build environment | Local development machine | Apple Silicon / universal build output | Not physically verified by automation | Build succeeds |
+| macOS 26.7.1 Tahoe | MacBook Pro with Touch Bar | Unspecified | Yes | Blank menu reported. Verification with 0.10.1-18 pending |
+| macOS 15.8.3 Sequoia (24H241) | MacBook Pro (13-inch, 2020, two Thunderbolt 3 ports) | Intel | Yes | Menu switching and Status verified with Better Now Playing 1.05.5 |
 | macOS 14 Sonoma | MacBook Pro with Touch Bar | Intel or Apple Silicon | Yes | Needs community reports |
 | macOS 13 Ventura | MacBook Pro with Touch Bar | Intel or Apple Silicon | Yes | Needs community reports |
 | macOS 12 Monterey | MacBook Pro with Touch Bar | Intel | Yes | Needs community reports |

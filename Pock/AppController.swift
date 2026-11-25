@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import CryptoKit
 import Magnet
 import PockKit
 
@@ -561,6 +562,21 @@ private final class TouchBarRestoreScheduler {
 
 // MARK: Customization menu
 extension AppController: NSTouchBarDelegate {
+	internal func openTouchBarLayoutEditor() {
+		let widgets = PockTouchBarController.layoutWidgets
+		let layout = PockTouchBarController.widgetLayout
+		let listedIdentifiers = Set(widgets.map(\.id))
+		TouchBarLayoutEditor.show(widgets: widgets, primary: layout.primary, secondary: layout.secondary) {
+			[weak self] primary, secondary in
+			let current = PockTouchBarController.widgetLayout
+			let available = Set(PockTouchBarController.layoutWidgets.map(\.id))
+			let updated = current.replacingWidgets(primary: primary, secondary: secondary,
+												 editable: listedIdentifiers.intersection(available))
+			guard updated != current else { return }
+			Preferences.touchBarWidgetLayout = updated
+			self?.pockTouchBarController?.reloadWidgetLayout()
+		}
+	}
 	
 	/// Open customization menu
 	@objc internal func openPockCustomizationPalette() {
@@ -594,18 +610,28 @@ extension AppController: NSTouchBarDelegate {
 		}
 		let touchBar = NSTouchBar()
 		touchBar.delegate = self
-		touchBar.customizationIdentifier = .pockTouchBarController
-		touchBar.defaultItemIdentifiers = controller.touchBar?.itemIdentifiers ?? controller.preferredItemIdentifiers
-		touchBar.customizationAllowedItemIdentifiers = controller.allowedCustomizationIdentifiers
+		let preferred = controller.preferredItemIdentifiers
+		let allowed = controller.allowedCustomizationIdentifiers
+		touchBar.customizationIdentifier = customizationIdentifier(preferred: preferred, allowed: allowed)
+		touchBar.defaultItemIdentifiers = preferred
+		touchBar.customizationAllowedItemIdentifiers = allowed
+		touchBar.customizationRequiredItemIdentifiers = controller.requiredCustomizationIdentifiers
 		return touchBar
 	}
 	
+	private func customizationIdentifier(preferred: [NSTouchBarItem.Identifier], allowed: [NSTouchBarItem.Identifier])
+		-> NSTouchBar.CustomizationIdentifier {
+		guard Preferences.touchBarWidgetLayout != nil else { return .pockTouchBarController }
+		// AppKit retains its own customization for each identifier. Seed it from the current menu.
+		let keys = preferred.map(\.rawValue) + ["\\"] + allowed.map(\.rawValue).sorted()
+		let digest = SHA256.hash(data: Data(keys.joined(separator: "\u{0}").utf8))
+		let suffix = digest.prefix(8).map { String(format: "%02x", $0) }.joined()
+		return NSTouchBar.CustomizationIdentifier("\(NSTouchBar.CustomizationIdentifier.pockTouchBarController).\(suffix)")
+	}
+
 	func touchBar(_ touchBar: NSTouchBar, makeItemForIdentifier identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
-		if identifier == PockTouchBarController.nativeTouchBarToggleIdentifier {
-			return pockTouchBarController.makeSwitchItem(interactive: false)
-		}
-		if identifier == WeatherTouchBarItem.itemIdentifier {
-			return WeatherTouchBarItem.makeCustomizationItem()
+		if let item = pockTouchBarController?.makeBuiltInCustomizationItem(for: identifier) {
+			return item
 		}
 		let item = pockTouchBarController.cachedItems[identifier]
 			?? pockTouchBarController.touchBar?.item(forIdentifier: identifier)

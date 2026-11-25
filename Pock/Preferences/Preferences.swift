@@ -32,8 +32,70 @@ internal enum LayoutStyle: String {
 	}
 }
 
+internal struct TouchBarWidgetLayout: Equatable {
+	var primary: [String]
+	var secondary: [String]
+
+	static func migrating(legacyPrimary: [String], defaultPrimary: [String], defaultSecondary: [String],
+						  navigation: String, spacer: String) -> Self {
+		let reserved = Set(defaultSecondary + [navigation])
+		let saved = legacyPrimary.filter { !reserved.contains($0) }
+		let primaryItems = Set(defaultPrimary + [spacer])
+		let primary = saved.contains(where: primaryItems.contains) ? saved : defaultPrimary + saved
+		return Self(primary: primary, secondary: defaultSecondary)
+	}
+
+	func replacingWidgets(primary: [String], secondary: [String], editable: Set<String>) -> Self {
+		var placed = Set<String>()
+		let primaryWidgets = primary.filter { editable.contains($0) && placed.insert($0).inserted }
+		let secondaryWidgets = secondary.filter { editable.contains($0) && placed.insert($0).inserted }
+		return Self(
+			primary: replacingIdentifiers(in: self.primary, with: primaryWidgets, editable: editable),
+			secondary: replacingIdentifiers(in: self.secondary, with: secondaryWidgets, editable: editable)
+		)
+	}
+
+	func replacingPrimary(_ identifiers: [String], editable: Set<String>) -> Self {
+		return Self(primary: replacingIdentifiers(in: primary, with: identifiers, editable: editable),
+					secondary: secondary)
+	}
+
+	private func replacingIdentifiers(in original: [String], with new: [String], editable: Set<String>) -> [String] {
+		// Keep spacers and temporarily unavailable widgets in the saved layout.
+		var replacements = new.makeIterator()
+		var identifiers = original.compactMap { editable.contains($0) ? replacements.next() : $0 }
+		while let identifier = replacements.next() { identifiers.append(identifier) }
+		return identifiers
+	}
+}
+
 internal struct Preferences {
+	private static let touchBarWidgetLayoutKey = "touchBarWidgetLayout"
+	static var touchBarWidgetLayout: TouchBarWidgetLayout? {
+		get {
+			guard let saved = UserDefaults.standard.dictionary(forKey: touchBarWidgetLayoutKey),
+				  let primary = saved["primary"] as? [String], let secondary = saved["secondary"] as? [String] else {
+				return nil
+			}
+			return TouchBarWidgetLayout(primary: primary, secondary: secondary)
+		}
+		set {
+			if let newValue = newValue {
+				UserDefaults.standard.set(["primary": newValue.primary, "secondary": newValue.secondary],
+										  forKey: touchBarWidgetLayoutKey)
+			} else {
+				UserDefaults.standard.removeObject(forKey: touchBarWidgetLayoutKey)
+			}
+		}
+	}
+
 	static func addWidgetToSavedLayout(_ identifier: String) {
+		if var layout = touchBarWidgetLayout {
+			guard !layout.primary.contains(identifier), !layout.secondary.contains(identifier) else { return }
+			layout.primary.append(identifier)
+			touchBarWidgetLayout = layout
+			return
+		}
 		var identifiers: [String] = self[.pockTouchBarItemIdentifiers]
 		guard !identifiers.isEmpty, !identifiers.contains(identifier) else { return }
 		let switchIdentifier = PockTouchBarController.nativeTouchBarToggleIdentifier.rawValue

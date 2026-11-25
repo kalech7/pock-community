@@ -17,39 +17,52 @@ extension NSTouchBar.CustomizationIdentifier {
 /// Pock (main Touch Bar controller)
 internal class PockTouchBarController: PKTouchBarMouseController {
 	internal static let nativeTouchBarToggleIdentifier = NSTouchBarItem.Identifier("io.github.pock.native-touchbar-toggle")
+	private static let activityIdentifier = NSTouchBarItem.Identifier("io.github.pock.ai-activity")
+	private static let backIdentifier = NSTouchBarItem.Identifier("io.github.pock.ai-activity.back")
+	private static let nativeIdentifier = NSTouchBarItem.Identifier("io.github.pock.ai-activity.native")
+	private static let navigationPriority = NSTouchBarItem.Priority(rawValue: NSTouchBarItem.Priority.high.rawValue + 1)
+
+	internal static var layoutWidgets: [TouchBarLayoutEditor.Widget] {
+		let builtIns = [
+			(identifier: activityIdentifier, name: "AI Activity".localized, symbol: "sparkles"),
+			(identifier: AudioOutputTouchBarItem.itemIdentifier, name: AudioOutputTouchBarItem.name, symbol: "speaker.wave.2"),
+			(identifier: StatusTouchBarItem.itemIdentifier, name: StatusTouchBarItem.name, symbol: "gauge"),
+			(identifier: WeatherTouchBarItem.itemIdentifier, name: "Weather".localized, symbol: "cloud.sun")
+		]
+		let menus: Set<TouchBarLayoutEditor.Menu> = [.primary, .secondary]
+		let installed = WidgetsLoader.loadedWidgets.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+		return builtIns.map { .init(id: $0.identifier.rawValue, name: $0.name, symbol: $0.symbol, supportedMenus: menus) }
+			+ installed.map { .init(id: $0.bundleIdentifier, name: $0.name, symbol: "app.dashed", supportedMenus: menus) }
+	}
+
+	internal static var widgetLayout: TouchBarWidgetLayout {
+		return Preferences.touchBarWidgetLayout ?? .migrating(
+			legacyPrimary: Preferences[.pockTouchBarItemIdentifiers],
+			defaultPrimary: WidgetsLoader.loadedWidgets.map(\.bundleIdentifier).sorted() + [WeatherTouchBarItem.itemIdentifier.rawValue],
+			defaultSecondary: [activityIdentifier, AudioOutputTouchBarItem.itemIdentifier].map(\.rawValue),
+			navigation: nativeTouchBarToggleIdentifier.rawValue,
+			spacer: NSTouchBarItem.Identifier.flexibleSpace.rawValue
+		)
+	}
 
 	/// Data
 	private(set) var widgets: [NSTouchBarItem.Identifier: PKWidgetInfo] = [:]
 	private(set) var cachedItems: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
-	private var cachedMouseDelegates: [PKScreenEdgeMouseDelegate] = []
 	private var mouseMoveThrottler = MouseMoveThrottler(maximumFrequency: 30, locationTolerance: 0.75)
-	private lazy var activityView = AgentActivityView()
-	private lazy var activityTouchBar = makeAgentActivityTouchBar()
+	private var activityView: AgentActivityView?
 	private enum Panel { case activity, audio }
 	private var panel: Panel?
-	private lazy var audioPanel = AudioOutputPanel { [weak self] in self?.showAgentActivity() }
+	private var audioReturnPanel: Panel?
+	private lazy var audioPanel = AudioOutputPanel { [weak self] in self?.returnFromAudioOutput() }
 
-	private var presentedBar: NSTouchBar? {
-		switch panel {
-		case .activity: return activityTouchBar
-		case .audio: return audioPanel.touchBar
-		case nil: return touchBar
-		}
-	}
-	
 	private var currentItems: [NSTouchBarItem.Identifier] {
 		return touchBar?.itemIdentifiers ?? []
 	}
 	private var nativeTouchBarToggleEnabled: Bool {
 		return Preferences[.nativeTouchBarToggleEnabled] as Bool
 	}
-	private var defaultItemIdentifiers: [NSTouchBarItem.Identifier] {
-		var identifiers = Array(widgets.keys)
-		identifiers.append(WeatherTouchBarItem.itemIdentifier)
-		if nativeTouchBarToggleEnabled {
-			identifiers.append(Self.nativeTouchBarToggleIdentifier)
-		}
-		return identifiers
+	private var availableItemIdentifiers: Set<NSTouchBarItem.Identifier> {
+		return Set(Self.layoutWidgets.map { NSTouchBarItem.Identifier($0.id) })
 	}
 	private var emptyTouchBarController: EmptyTouchBarController?
 	private var blankTouchBarCheckGeneration = 0
@@ -63,30 +76,50 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	}
 	
 	internal var allowedCustomizationIdentifiers: [NSTouchBarItem.Identifier] {
-		var identifiers = Array(widgets.keys)
-		identifiers.append(WeatherTouchBarItem.itemIdentifier)
-		if nativeTouchBarToggleEnabled {
-			identifiers.append(Self.nativeTouchBarToggleIdentifier)
-		}
-		identifiers.append(.flexibleSpace)
-		return identifiers
+		let secondary = Set(Self.widgetLayout.secondary)
+		let available = availableItemIdentifiers
+		let identifiers = Self.layoutWidgets.filter { !secondary.contains($0.id) }
+			.map { NSTouchBarItem.Identifier($0.id) }.filter(available.contains)
+		return identifiers + [.flexibleSpace] + requiredCustomizationIdentifiers
+	}
+
+	internal var requiredCustomizationIdentifiers: [NSTouchBarItem.Identifier] {
+		return nativeTouchBarToggleEnabled ? [Self.nativeTouchBarToggleIdentifier] : []
 	}
 
 	internal var preferredItemIdentifiers: [NSTouchBarItem.Identifier] {
-		let savedRawIdentifiers: [String] = Preferences[.pockTouchBarItemIdentifiers]
-		let savedIdentifiers = savedRawIdentifiers.map({ NSTouchBarItem.Identifier($0) })
-		let allowedIdentifiers = Set(allowedCustomizationIdentifiers)
-		let savedVisibleIdentifiers = savedIdentifiers.filter({ allowedIdentifiers.contains($0) })
-		guard savedVisibleIdentifiers.isEmpty == false else {
-			return defaultItemIdentifiers
+		let available = availableItemIdentifiers.union([.flexibleSpace])
+		return Self.widgetLayout.primary.map { NSTouchBarItem.Identifier($0) }.filter(available.contains)
+			+ requiredCustomizationIdentifiers
+	}
+
+	private var secondaryItemIdentifiers: [NSTouchBarItem.Identifier] {
+		let available = availableItemIdentifiers
+		return Self.widgetLayout.secondary.map { NSTouchBarItem.Identifier($0) }.filter(available.contains)
+	}
+
+	private var activeItemIdentifiers: [NSTouchBarItem.Identifier] {
+		switch panel {
+		case .activity: return secondaryItemIdentifiers
+		case .audio: return []
+		case nil: return preferredItemIdentifiers
 		}
-		guard nativeTouchBarToggleEnabled else {
-			return savedVisibleIdentifiers
+	}
+
+	private var displayedItemIdentifiers: [NSTouchBarItem.Identifier] {
+		switch panel {
+		case .audio: return AudioOutputPanel.itemIdentifiers
+		case nil: return preferredItemIdentifiers
+		case .activity:
+			var identifiers = secondaryItemIdentifiers
+			if let center = identifiers.firstIndex(of: Self.activityIdentifier) {
+				identifiers.insert(.flexibleSpace, at: center + 1)
+				identifiers.insert(.flexibleSpace, at: center)
+			} else if identifiers.isEmpty {
+				identifiers = [.flexibleSpace]
+			}
+			return [Self.backIdentifier] + identifiers + [Self.nativeIdentifier]
 		}
-		guard savedVisibleIdentifiers.contains(Self.nativeTouchBarToggleIdentifier) == false else {
-			return savedVisibleIdentifiers
-		}
-		return savedVisibleIdentifiers + [Self.nativeTouchBarToggleIdentifier]
 	}
 	
 	// MARK: Mouse Support
@@ -110,10 +143,11 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		super.didLoad()
 		Roger.debug("[PockTouchBarController] Loaded.")
 	}
-	
+
 	deinit {
+		NotificationCenter.default.removeObserver(self)
 		Roger.info("Deinit")
-		dismissPanel()
+		resetPanel()
 		flushWidgetItems()
 		emptyTouchBarController = nil
 		touchBar = nil
@@ -128,11 +162,8 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			widgets[NSTouchBarItem.Identifier(widget.bundleIdentifier)] = widget
 		}
 		touchBar = nil
-		let configuration = presentationConfiguration
 		isVisible = true
-		TouchBarHelper.presentOnTop(touchBar, placement: configuration.placement)
-		TouchBarHelper.setPresentationMode(to: configuration.mode)
-		checkForBlankTouchBar()
+		restorePresentation()
 	}
 
 	internal func restorePresentation() {
@@ -140,7 +171,8 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			return
 		}
 		let configuration = presentationConfiguration
-		TouchBarHelper.presentOnTop(presentedBar, placement: configuration.placement)
+		updateDisplayedItems()
+		TouchBarHelper.presentOnTop(touchBar, placement: configuration.placement)
 		TouchBarHelper.setPresentationMode(to: configuration.mode)
 		if panel == nil {
 			checkForBlankTouchBar()
@@ -157,20 +189,17 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		edgeController?.tearDown(invalidate: true)
 		edgeController = nil
 		isVisible = false
-		if !dismissPanel() {
-			TouchBarHelper.dismissFromTop(touchBar)
-		}
+		stopStatusWidgets()
+		resetPanel()
+		TouchBarHelper.dismissFromTop(touchBar)
 	}
 
 	internal func resumePresentation() {
 		guard AppController.shared.isLocked == false, isVisible == false else {
 			return
 		}
-		let configuration = presentationConfiguration
 		isVisible = true
-		TouchBarHelper.presentOnTop(touchBar, placement: configuration.placement)
-		TouchBarHelper.setPresentationMode(to: configuration.mode)
-		checkForBlankTouchBar()
+		restorePresentation()
 		async(after: 0.05) { [weak self] in
 			guard self?.isVisible == true else {
 				return
@@ -182,48 +211,52 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	override func minimize() {
 		cancelBlankTouchBarCheck()
 		emptyTouchBarController?.dismiss()
-		if dismissPanel() {
-			isVisible = false
-			touchBar = nil
-		} else {
-			super.minimize()
-		}
+		stopStatusWidgets()
+		resetPanel()
+		super.minimize()
 	}
 	
 	override func dismiss() {
 		cancelBlankTouchBarCheck()
-		let dismissedPanel = dismissPanel()
+		stopStatusWidgets()
+		resetPanel()
 		emptyTouchBarController?.dismiss()
 		guard isVisible else {
 			return
 		}
 		TouchBarHelper.setPresentationMode(to: Preferences[.userDefinedPresentationMode] as PresentationMode)
-		if dismissedPanel {
-			isVisible = false
-			touchBar = nil
-		} else {
-			super.dismiss()
-		}
+		super.dismiss()
 	}
 	
 	private func flushWidgetItems() {
-		cachedItems.removeAll()
-		cachedMouseDelegates.removeAll()
+		invalidateWidgetItems()
 		widgets.removeAll()
 	}
 
+	private func invalidateWidgetItems() {
+		stopStatusWidgets()
+		cachedItems.removeAll()
+		activityView = nil
+	}
+
 	internal func savePreferredItemIdentifiers(_ identifiers: [NSTouchBarItem.Identifier]) {
-		let allowedIdentifiers = Set(allowedCustomizationIdentifiers)
-		let visibleIdentifiers = identifiers.filter({ allowedIdentifiers.contains($0) })
-		Preferences[.pockTouchBarItemIdentifiers] = visibleIdentifiers.map({ $0.rawValue })
+		let allowedIdentifiers = Set(allowedCustomizationIdentifiers).subtracting(requiredCustomizationIdentifiers)
+		var seen = Set<NSTouchBarItem.Identifier>()
+		let visibleIdentifiers = identifiers.filter {
+			allowedIdentifiers.contains($0) && ($0 == .flexibleSpace || seen.insert($0).inserted)
+		}
+		Preferences.touchBarWidgetLayout = Self.widgetLayout.replacingPrimary(
+			visibleIdentifiers.map(\.rawValue), editable: Set(allowedIdentifiers.map(\.rawValue))
+		)
 	}
 
 	/// Setup Touch Bar
 	override func makeTouchBar() -> NSTouchBar? {
 		let touchBar = NSTouchBar()
 		touchBar.delegate = self
+		touchBar.templateItems = makeSecondaryNavigationItems().union(audioPanel.templateItems)
 		// The separate customization palette saves its layout in Preferences.
-		touchBar.defaultItemIdentifiers = preferredItemIdentifiers
+		touchBar.defaultItemIdentifiers = displayedItemIdentifiers
 		for key in widgets.keys {
 			Roger.info("[\(key.rawValue)] - Allowed for customization")
 		}
@@ -249,6 +282,26 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			cachedItems[identifier] = item
 			return item
 		}
+		if identifier == StatusTouchBarItem.itemIdentifier {
+			let item = StatusTouchBarItem()
+			cachedItems[identifier] = item
+			updateStatusWidgets()
+			return item
+		}
+		if identifier == Self.activityIdentifier {
+			let item = NSCustomTouchBarItem(identifier: identifier)
+			let view = AgentActivityView()
+			item.view = view
+			activityView = view
+			cachedItems[identifier] = item
+			updateStatusWidgets()
+			return item
+		}
+		if identifier == AudioOutputTouchBarItem.itemIdentifier {
+			let item = AudioOutputTouchBarItem.make(target: self, action: #selector(showAudioOutput))
+			cachedItems[identifier] = item
+			return item
+		}
 		guard let widget = widgets[identifier] else {
 			Roger.error("Can't find `NSTouchBarItem` for given identifier: `\(identifier)`")
 			return nil
@@ -256,81 +309,134 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		Roger.info("[\(identifier.rawValue)][item] - initializes")
 		let item = PKWidgetTouchBarItem(widget: widget)
 		cachedItems[identifier] = item
-		if let delegate = item?.widget as? PKScreenEdgeMouseDelegate {
-			cachedMouseDelegates.append(delegate)
-		}
 		return item
+	}
+
+	internal func makeBuiltInCustomizationItem(for identifier: NSTouchBarItem.Identifier) -> NSTouchBarItem? {
+		if identifier == Self.nativeTouchBarToggleIdentifier { return makeSwitchItem(interactive: false) }
+		if identifier == WeatherTouchBarItem.itemIdentifier { return WeatherTouchBarItem.makeCustomizationItem() }
+		if identifier == AudioOutputTouchBarItem.itemIdentifier || identifier == Self.activityIdentifier
+			|| identifier == StatusTouchBarItem.itemIdentifier,
+			let label = Self.layoutWidgets.first(where: { $0.id == identifier.rawValue })?.name {
+			let item = NSCustomTouchBarItem(identifier: identifier)
+			item.view = NSButton(title: label, target: nil, action: nil)
+			item.customizationLabel = label
+			return item
+		}
+		return nil
 	}
 
 	internal func makeSwitchItem(interactive: Bool) -> NSTouchBarItem {
 		let item = NSCustomTouchBarItem(identifier: Self.nativeTouchBarToggleIdentifier)
 		item.view = TouchBarSwapHandleView(
 			direction: .toNative,
-			label: "touchbar.show-ai-activity".localized,
+			label: "Show AI Menu".localized,
 			target: interactive ? self : nil,
-			action: interactive ? #selector(showAgentActivity) : nil
+			action: interactive ? #selector(showSecondaryMenu) : nil
 		)
 		item.customizationLabel = "touchbar.switch".localized
+		item.visibilityPriority = Self.navigationPriority
 		return item
 	}
 
-	@discardableResult
-	private func dismissPanel() -> Bool {
-		guard let openPanel = panel else { return false }
-		TouchBarHelper.dismissFromTop(presentedBar)
+	private func resetPanel() {
+		if panel == .audio { audioPanel.stop() }
 		panel = nil
-		switch openPanel {
-		case .activity: activityView.stopRefreshing()
-		case .audio: audioPanel.stop()
-		}
-		return true
+		audioReturnPanel = nil
 	}
 
 	@objc internal func showAgentActivity() {
+		if secondaryItemIdentifiers.contains(Self.activityIdentifier) {
+			showSecondaryMenu()
+		} else if preferredItemIdentifiers.contains(Self.activityIdentifier) {
+			showWidgets()
+		} else {
+			AppController.shared.openTouchBarLayoutEditor()
+		}
+	}
+
+	@objc private func showSecondaryMenu() {
 		showPanel(.activity)
 	}
 
 	@objc internal func showAudioOutput() {
+		guard panel != .audio else { return }
+		audioReturnPanel = panel
 		showPanel(.audio)
 	}
 
-	private func showPanel(_ nextPanel: Panel) {
+	private func returnFromAudioOutput() {
+		guard panel == .audio else { return }
+		showPanel(audioReturnPanel)
+	}
+
+	private func showPanel(_ nextPanel: Panel?) {
 		guard isVisible, !AppController.shared.isLocked, panel != nextPanel else { return }
 		cancelBlankTouchBarCheck()
 		edgeController?.tearDown(invalidate: true)
 		edgeController = nil
-		if !dismissPanel() { TouchBarHelper.dismissFromTop(touchBar) }
-		panel = nextPanel
-		switch nextPanel {
-		case .activity: activityView.startRefreshing()
-		case .audio: audioPanel.start()
+		if panel == .audio {
+			audioPanel.stop()
+			audioReturnPanel = nil
 		}
-		restorePresentation()
+		panel = nextPanel
+		if nextPanel == .audio { audioPanel.start() }
+		// Changing the modal bar for every menu leaves a gap while TouchBarServer updates its surfaces.
+		updateDisplayedItems()
+		if panel == nil { checkForBlankTouchBar() }
+		refreshScreenEdgeAfterPresentation()
 	}
 
-	private func makeAgentActivityTouchBar() -> NSTouchBar {
-		let back = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity.back"))
+	private func makeSecondaryNavigationItems() -> Set<NSTouchBarItem> {
+		let back = NSCustomTouchBarItem(identifier: Self.backIdentifier)
 		back.view = TouchBarSwapHandleView(
 			direction: .toPock,
 			label: "menu.show-pock".localized,
 			target: self,
 			action: #selector(returnFromAgentActivity)
 		)
-		let activity = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity"))
-		activity.view = activityView
-		let audio = AudioOutputTouchBarItem.make(target: self, action: #selector(showAudioOutput))
-		let native = NSCustomTouchBarItem(identifier: NSTouchBarItem.Identifier("io.github.pock.ai-activity.native"))
+		back.visibilityPriority = Self.navigationPriority
+		let native = NSCustomTouchBarItem(identifier: Self.nativeIdentifier)
 		native.view = TouchBarSwapHandleView(
 			direction: .toNative,
 			label: "menu.show-native-touchbar".localized,
 			target: AppController.shared,
 			action: #selector(AppController.showNativeTouchBarFromHandle)
 		)
-		let bar = NSTouchBar()
-		bar.templateItems = [back, activity, audio, native]
-		bar.defaultItemIdentifiers = [back.identifier, .flexibleSpace, activity.identifier, .flexibleSpace, audio.identifier, native.identifier]
-		bar.principalItemIdentifier = activity.identifier
-		return bar
+		native.visibilityPriority = Self.navigationPriority
+		return [back, native]
+	}
+
+	internal func reloadWidgetLayout() {
+		emptyTouchBarController?.dismiss()
+		emptyTouchBarController = nil
+		guard isVisible, !AppController.shared.isLocked else { return }
+		updateDisplayedItems()
+		if panel == nil { checkForBlankTouchBar() }
+		refreshScreenEdgeAfterPresentation()
+	}
+
+	private func updateDisplayedItems() {
+		if let bar = touchBar {
+			let identifiers = displayedItemIdentifiers
+			if bar.defaultItemIdentifiers != identifiers { bar.defaultItemIdentifiers = identifiers }
+		}
+		updateStatusWidgets()
+	}
+
+	private func updateStatusWidgets() {
+		guard isVisible else { return }
+		let identifiers = activeItemIdentifiers
+		if identifiers.contains(Self.activityIdentifier) { activityView?.startRefreshing() }
+		else { activityView?.stopRefreshing() }
+		let status = cachedItems[StatusTouchBarItem.itemIdentifier] as? StatusTouchBarItem
+		if identifiers.contains(StatusTouchBarItem.itemIdentifier) { status?.startRefreshing() }
+		else { status?.stopRefreshing() }
+	}
+
+	private func stopStatusWidgets() {
+		activityView?.stopRefreshing()
+		(cachedItems[StatusTouchBarItem.itemIdentifier] as? StatusTouchBarItem)?.stopRefreshing()
 	}
 
 	@objc private func returnFromAgentActivity() {
@@ -343,11 +449,12 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			restorePresentation()
 			return
 		}
-		guard !AppController.shared.isLocked else { return }
-		dismissPanel()
-		restorePresentation()
+		showPanel(nil)
+	}
+
+	private func refreshScreenEdgeAfterPresentation() {
 		async(after: 0.05) { [weak self] in
-			guard let self = self, self.isVisible, self.panel == nil else { return }
+			guard let self = self, self.isVisible, self.panel != .audio else { return }
 			self.reloadScreenEdgeController()
 		}
 	}
@@ -383,12 +490,12 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	// MARK: Mouse delegates
 	
 	private var mouseDelegates: [PKScreenEdgeMouseDelegate] {
-		return cachedMouseDelegates
+		return activeItemIdentifiers.compactMap { (cachedItems[$0] as? PKWidgetTouchBarItem)?.widget as? PKScreenEdgeMouseDelegate }
 	}
 	
 	// MARK: Mouse Overrides
 	override func reloadScreenEdgeController() {
-		if panel == nil, Preferences[.mouseSupportEnabled], let parentView = parentView {
+		if panel != .audio, Preferences[.mouseSupportEnabled], let parentView = parentView {
 			let color: NSColor = Preferences[.showTrackingArea] ? .systemBlue : .clear
 			self.edgeController = PKScreenEdgeController(mouseDelegate: self, parentView: parentView, barColor: color)
 		} else {

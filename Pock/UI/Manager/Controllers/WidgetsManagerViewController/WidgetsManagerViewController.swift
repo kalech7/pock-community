@@ -41,7 +41,7 @@ class WidgetsManagerViewController: NSViewController {
 	// MARK: Data
 
 	private enum BuiltInWidget: CaseIterable {
-		case weather, agentActivity, nextMeeting, audioOutput
+		case weather, agentActivity, nextMeeting, audioOutput, status
 
 		var name: String {
 			switch self {
@@ -49,6 +49,7 @@ class WidgetsManagerViewController: NSViewController {
 			case .agentActivity: return "AI Activity".localized
 			case .nextMeeting: return NextMeetingReminder.name
 			case .audioOutput: return AudioOutputTouchBarItem.name
+			case .status: return StatusTouchBarItem.name
 			}
 		}
 
@@ -58,6 +59,7 @@ class WidgetsManagerViewController: NSViewController {
 			case .agentActivity: return PockTouchBarController.nativeTouchBarToggleIdentifier.rawValue
 			case .nextMeeting: return NextMeetingReminder.identifier
 			case .audioOutput: return AudioOutputTouchBarItem.itemIdentifier.rawValue
+			case .status: return StatusTouchBarItem.itemIdentifier.rawValue
 			}
 		}
 	}
@@ -246,20 +248,24 @@ extension WidgetsManagerViewController {
 		let buttons: [NSButton]
 		switch widget {
 		case .weather:
-			description = "Choose a city and temperature unit. Add Weather to your Touch Bar from Customize Pock.".localized
+			description = "Choose a city and temperature unit. Place Weather in either Touch Bar menu.".localized
 			buttons = [
 				NSButton(title: "Configure Weather…".localized, target: self, action: #selector(configureWeather)),
-				NSButton(title: "menu.customization.pock".localized, target: self, action: #selector(customizePock))
+				NSButton(title: "Organize Widgets…".localized, target: self, action: #selector(organizeWidgets))
 			]
 		case .agentActivity:
-			description = "See running agent sessions. Open AI Activity here or use the dot-and-arrow button on the Touch Bar.".localized
+			description = "See running agent sessions. Place AI Activity in either Touch Bar menu.".localized
 			buttons = [NSButton(title: "touchbar.show-ai-activity".localized, target: self, action: #selector(showAgentActivity))]
 		case .nextMeeting:
 			mountBuiltInPanel(NextMeetingPreferencesView())
 			return
 		case .audioOutput:
-			description = "Tap the speaker in AI Activity to switch between available speakers and headphones.".localized
+			description = "Tap the speaker on the Touch Bar to switch between available speakers and headphones.".localized
 			buttons = [NSButton(title: "Show Audio Output".localized, target: self, action: #selector(showAudioOutput))]
+		case .status:
+			let organize = NSButton(title: "Organize Widgets…".localized, target: self, action: #selector(organizeWidgets))
+			mountBuiltInPanel(StatusPreferencesView(organizeButton: organize))
+			return
 		}
 		let label = NSTextField(wrappingLabelWithString: description)
 		label.textColor = .secondaryLabelColor
@@ -289,8 +295,8 @@ extension WidgetsManagerViewController {
 		WeatherTouchBarItem.openSettings()
 	}
 
-	@objc private func customizePock() {
-		AppController.shared.openPockCustomizationPalette()
+	@objc private func organizeWidgets() {
+		AppController.shared.openTouchBarLayoutEditor()
 	}
 
 	@objc private func showAgentActivity() {
