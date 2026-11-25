@@ -9,6 +9,11 @@ This repository is an unofficial community-maintained fork of Pock. It preserves
 - Documentation refresh for public community presentation.
 - Added release, security, build, and issue reporting guidance.
 
+## 0.10.1-19 Community
+
+- Added the optional AWS Status widget to both Touch Bar menus. It shows EC2 and RDS status using a local AWS CLI profile and can display a local job result and cost estimate.
+- AWS Status distinguishes missing profiles, expired sessions, permission errors, and endpoint connectivity problems. Cost estimates are read from a local file or an existing local cache.
+
 ## 0.10.1-18 Community
 
 - Restored the Status widget with configurable Wi-Fi, battery, date and time, and a preview for the clock format.

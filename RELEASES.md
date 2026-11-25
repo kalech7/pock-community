@@ -13,13 +13,13 @@ This document describes how Pock Community releases are prepared. Pock Community
 Use the app version from the Xcode project. The current project version is:
 
 - Marketing version: `0.10.1`
-- Build version: `18`
-- Release label: `0.10.1-18`
+- Build version: `19`
+- Release label: `0.10.1-19`
 
 Use tags such as:
 
 ```text
-v0.10.1-18
+v0.10.1-19
 ```
 
 ## Pre-Release Checklist
@@ -61,7 +61,7 @@ APP_PATH="$HOME/Library/Developer/Xcode/DerivedData/Pock-fgcdlnkhwvjnuwbrhagpqbm
 RELEASE_DIR="$(mktemp -d)"
 ditto "$APP_PATH" "$RELEASE_DIR/Pock.app"
 cp LICENSE.md "$RELEASE_DIR/LICENSE.md"
-(cd "$RELEASE_DIR" && zip -qry -X --symlinks "Pock-Community-0.10.1-18.zip" Pock.app LICENSE.md)
+(cd "$RELEASE_DIR" && zip -qry -X --symlinks "Pock-Community-0.10.1-19.zip" Pock.app LICENSE.md)
 ```
 
 If the DerivedData path differs, locate the newest Release app:
@@ -73,10 +73,10 @@ find "$HOME/Library/Developer/Xcode/DerivedData" -path "*/Build/Products/Release
 ## Create A GitHub Release
 
 ```sh
-git tag v0.10.1-18
-git push origin v0.10.1-18
-gh release create v0.10.1-18 "$RELEASE_DIR/Pock-Community-0.10.1-18.zip" \
-  --title "Pock Community 0.10.1-18" \
+git tag v0.10.1-19
+git push origin v0.10.1-19
+gh release create v0.10.1-19 "$RELEASE_DIR/Pock-Community-0.10.1-19.zip" \
+  --title "Pock Community 0.10.1-19" \
   --notes-file .github/RELEASE_TEMPLATE.md
 ```
 
@@ -115,11 +115,11 @@ Basic flow:
 
 ```sh
 codesign --force --deep --options runtime --sign "Developer ID Application: NAME (TEAMID)" /Applications/Pock.app
-(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-18.zip Pock.app)
-xcrun notarytool submit Pock-Community-0.10.1-18.zip --keychain-profile "PockCommunityNotary" --wait
+(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-19.zip Pock.app)
+xcrun notarytool submit Pock-Community-0.10.1-19.zip --keychain-profile "PockCommunityNotary" --wait
 xcrun stapler staple /Applications/Pock.app
 xcrun stapler validate /Applications/Pock.app
-(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-18-notarized.zip Pock.app)
+(cd /Applications && zip -qry -X --symlinks Pock-Community-0.10.1-19-notarized.zip Pock.app)
 ```
 
 Do not commit certificates, passwords, provisioning profiles, or signing identities.

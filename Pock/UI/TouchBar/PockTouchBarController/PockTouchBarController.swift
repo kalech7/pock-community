@@ -25,6 +25,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	internal static var layoutWidgets: [TouchBarLayoutEditor.Widget] {
 		let builtIns = [
 			(identifier: activityIdentifier, name: "AI Activity".localized, symbol: "sparkles"),
+			(identifier: AWSStatusView.itemIdentifier, name: "AWS Status".localized, symbol: "cloud"),
 			(identifier: AudioOutputTouchBarItem.itemIdentifier, name: AudioOutputTouchBarItem.name, symbol: "speaker.wave.2"),
 			(identifier: StatusTouchBarItem.itemIdentifier, name: StatusTouchBarItem.name, symbol: "gauge"),
 			(identifier: WeatherTouchBarItem.itemIdentifier, name: "Weather".localized, symbol: "cloud.sun")
@@ -50,6 +51,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	private(set) var cachedItems: [NSTouchBarItem.Identifier: NSTouchBarItem] = [:]
 	private var mouseMoveThrottler = MouseMoveThrottler(maximumFrequency: 30, locationTolerance: 0.75)
 	private var activityView: AgentActivityView?
+	private var awsStatusView: AWSStatusView?
 	private enum Panel { case activity, audio }
 	private var panel: Panel?
 	private var audioReturnPanel: Panel?
@@ -62,7 +64,9 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		return Preferences[.nativeTouchBarToggleEnabled] as Bool
 	}
 	private var availableItemIdentifiers: Set<NSTouchBarItem.Identifier> {
-		return Set(Self.layoutWidgets.map { NSTouchBarItem.Identifier($0.id) })
+		var identifiers = Set(Self.layoutWidgets.map { NSTouchBarItem.Identifier($0.id) })
+		if !AWSStatusConfiguration.load().enabled { identifiers.remove(AWSStatusView.itemIdentifier) }
+		return identifiers
 	}
 	private var emptyTouchBarController: EmptyTouchBarController?
 	private var blankTouchBarCheckGeneration = 0
@@ -141,6 +145,8 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 	// MARK: Overrides
 	override func didLoad() {
 		super.didLoad()
+		NotificationCenter.default.addObserver(self, selector: #selector(reloadAWSStatusWidget),
+			name: AWSStatusConfiguration.didChange, object: nil)
 		Roger.debug("[PockTouchBarController] Loaded.")
 	}
 
@@ -237,6 +243,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		stopStatusWidgets()
 		cachedItems.removeAll()
 		activityView = nil
+		awsStatusView = nil
 	}
 
 	internal func savePreferredItemIdentifiers(_ identifiers: [NSTouchBarItem.Identifier]) {
@@ -297,6 +304,15 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 			updateStatusWidgets()
 			return item
 		}
+		if identifier == AWSStatusView.itemIdentifier {
+			let item = NSCustomTouchBarItem(identifier: identifier)
+			let view = AWSStatusView()
+			item.view = view
+			awsStatusView = view
+			cachedItems[identifier] = item
+			updateStatusWidgets()
+			return item
+		}
 		if identifier == AudioOutputTouchBarItem.itemIdentifier {
 			let item = AudioOutputTouchBarItem.make(target: self, action: #selector(showAudioOutput))
 			cachedItems[identifier] = item
@@ -316,7 +332,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		if identifier == Self.nativeTouchBarToggleIdentifier { return makeSwitchItem(interactive: false) }
 		if identifier == WeatherTouchBarItem.itemIdentifier { return WeatherTouchBarItem.makeCustomizationItem() }
 		if identifier == AudioOutputTouchBarItem.itemIdentifier || identifier == Self.activityIdentifier
-			|| identifier == StatusTouchBarItem.itemIdentifier,
+			|| identifier == StatusTouchBarItem.itemIdentifier || identifier == AWSStatusView.itemIdentifier,
 			let label = Self.layoutWidgets.first(where: { $0.id == identifier.rawValue })?.name {
 			let item = NSCustomTouchBarItem(identifier: identifier)
 			item.view = NSButton(title: label, target: nil, action: nil)
@@ -407,6 +423,11 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		return [back, native]
 	}
 
+	@objc private func reloadAWSStatusWidget() {
+		awsStatusView?.stopRefreshing()
+		reloadWidgetLayout()
+	}
+
 	internal func reloadWidgetLayout() {
 		emptyTouchBarController?.dismiss()
 		emptyTouchBarController = nil
@@ -429,6 +450,8 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 		let identifiers = activeItemIdentifiers
 		if identifiers.contains(Self.activityIdentifier) { activityView?.startRefreshing() }
 		else { activityView?.stopRefreshing() }
+		if identifiers.contains(AWSStatusView.itemIdentifier) { awsStatusView?.startRefreshing() }
+		else { awsStatusView?.stopRefreshing() }
 		let status = cachedItems[StatusTouchBarItem.itemIdentifier] as? StatusTouchBarItem
 		if identifiers.contains(StatusTouchBarItem.itemIdentifier) { status?.startRefreshing() }
 		else { status?.stopRefreshing() }
@@ -436,6 +459,7 @@ internal class PockTouchBarController: PKTouchBarMouseController {
 
 	private func stopStatusWidgets() {
 		activityView?.stopRefreshing()
+		awsStatusView?.stopRefreshing()
 		(cachedItems[StatusTouchBarItem.itemIdentifier] as? StatusTouchBarItem)?.stopRefreshing()
 	}
 

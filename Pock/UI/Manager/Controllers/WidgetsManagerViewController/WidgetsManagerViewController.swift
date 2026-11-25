@@ -41,7 +41,7 @@ class WidgetsManagerViewController: NSViewController {
 	// MARK: Data
 
 	private enum BuiltInWidget: CaseIterable {
-		case weather, agentActivity, nextMeeting, audioOutput, status
+		case weather, agentActivity, nextMeeting, audioOutput, status, awsStatus
 
 		var name: String {
 			switch self {
@@ -50,6 +50,7 @@ class WidgetsManagerViewController: NSViewController {
 			case .nextMeeting: return NextMeetingReminder.name
 			case .audioOutput: return AudioOutputTouchBarItem.name
 			case .status: return StatusTouchBarItem.name
+			case .awsStatus: return "AWS Status".localized
 			}
 		}
 
@@ -60,6 +61,7 @@ class WidgetsManagerViewController: NSViewController {
 			case .nextMeeting: return NextMeetingReminder.identifier
 			case .audioOutput: return AudioOutputTouchBarItem.itemIdentifier.rawValue
 			case .status: return StatusTouchBarItem.itemIdentifier.rawValue
+			case .awsStatus: return AWSStatusView.itemIdentifier.rawValue
 			}
 		}
 	}
@@ -262,6 +264,12 @@ extension WidgetsManagerViewController {
 		case .audioOutput:
 			description = "Tap the speaker on the Touch Bar to switch between available speakers and headphones.".localized
 			buttons = [NSButton(title: "Show Audio Output".localized, target: self, action: #selector(showAudioOutput))]
+		case .awsStatus:
+			description = "Enable AWS Status and choose which EC2, RDS, and local indicators to show.".localized
+			buttons = [
+				NSButton(title: "Configure AWS Status…".localized, target: self, action: #selector(configureAWSStatus)),
+				NSButton(title: "Organize Widgets…".localized, target: self, action: #selector(organizeWidgets))
+			]
 		case .status:
 			let organize = NSButton(title: "Organize Widgets…".localized, target: self, action: #selector(organizeWidgets))
 			mountBuiltInPanel(StatusPreferencesView(organizeButton: organize))
@@ -293,6 +301,10 @@ extension WidgetsManagerViewController {
 
 	@objc private func configureWeather() {
 		WeatherTouchBarItem.openSettings()
+	}
+
+	@objc private func configureAWSStatus() {
+		AWSStatusConfiguration.showSettings()
 	}
 
 	@objc private func organizeWidgets() {
